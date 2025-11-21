@@ -450,11 +450,41 @@ const ProductManager: React.FC = () => {
 // --- Order History Manager ---
 
 const OrderHistoryManager: React.FC = () => {
-  const { orders, users } = useStore();
+  const { orders, users, products } = useStore();
   const [filterClient, setFilterClient] = useState<string>('all');
 
   const filteredOrders = orders.filter(o => filterClient === 'all' || o.userId === filterClient);
   const sortedOrders = [...filteredOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Helper to convert image URL to Base64
+  const getDataUrl = (url: string): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      img.src = url;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          try {
+            resolve(canvas.toDataURL('image/jpeg'));
+          } catch (e) {
+            console.error('Canvas toDataURL failed', e);
+            resolve(null);
+          }
+        } else {
+          resolve(null);
+        }
+      };
+      img.onerror = () => {
+        console.error('Image load failed', url);
+        resolve(null);
+      };
+    });
+  };
 
   const generatePDF = async (order: Order) => {
     const doc = new jsPDF();
@@ -475,79 +505,64 @@ const OrderHistoryManager: React.FC = () => {
       return deptA.localeCompare(deptB);
     });
 
-    // Prepare data for table
-    // We want a list layout with images. autoTable supports images in cells.
-    // Layout: Image | Product Details (Name, Dept, Tax) | Qty | Price | Total
-
-    const tableBody = await Promise.all(sortedItems.map(async (item) => {
-      let imgData = null;
-      if (item.imageUrl && !item.imageUrl.includes('placeholder')) {
-        try {
-          // We need to fetch the image and convert to base64 for jspdf
-          // This might fail due to CORS if not configured correctly on Supabase
-          // For now, we'll try-catch. If fail, no image.
-          // Note: In a real browser environment, we might need a proxy or CORS headers.
-          // For this demo, we'll skip actual image fetching if it's complex and just put text,
-          // BUT the user specifically asked for images.
-          // Let's try to use an Image object to draw.
-          // autoTable allows 'didDrawCell' hook.
-        } catch (e) {
-          console.error("Image load error", e);
-        }
+    // Pre-load images
+    const itemsWithImages = await Promise.all(sortedItems.map(async (item) => {
+      // 1. Try item.imageUrl
+      // 2. Fallback to finding product in store
+      let imageUrl = item.imageUrl;
+      if (!imageUrl) {
+        // Try to find by name (fuzzy match) or just rely on what we have
+        // Since we don't store product ID in order items (oops), we try name
+        const product = products.find(p => p.nameCN === item.productNameCN);
+        if (product) imageUrl = product.imageUrl;
       }
 
+      let base64Img: string | null = null;
+      if (imageUrl && !imageUrl.includes('placeholder')) {
+        base64Img = await getDataUrl(imageUrl);
+      }
+      return { ...item, base64Img, finalDepartment: item.department || (products.find(p => p.nameCN === item.productNameCN)?.department) || '-' };
+    }));
+
+    const tableBody = itemsWithImages.map((item) => {
       return [
         '', // Image placeholder
-        `${item.productNameCN}\n${item.productNameFR}\nDept: ${item.department || '-'}\nTax: ${item.taxable ? 'Yes' : 'No'}`,
+        `${item.productNameCN}\n${item.productNameFR}\nDept: ${item.finalDepartment}\nTax: ${item.taxable ? 'Yes' : 'No'}`,
         item.isCase ? 'Case' : 'Unit',
         item.quantity,
         `$${item.unitPrice.toFixed(2)}`,
         `$${item.totalLine.toFixed(2)}`
       ];
-    }));
+    });
 
     autoTable(doc, {
       head: [['Image', 'Product Details', 'Type', 'Qty', 'Price', 'Total']],
       body: tableBody,
       startY: 50,
       rowPageBreak: 'avoid',
-      bodyStyles: { minCellHeight: 25, valign: 'middle' },
+      // 5 items per page -> A4 (297mm) - margins (~40mm) = 250mm / 5 = 50mm per row
+      bodyStyles: { minCellHeight: 45, valign: 'middle', fontSize: 12 },
       columnStyles: {
-        0: { cellWidth: 25 },
+        0: { cellWidth: 45 }, // Big image column
         1: { cellWidth: 'auto' },
       },
       didDrawCell: (data) => {
         if (data.section === 'body' && data.column.index === 0) {
-          const item = sortedItems[data.row.index];
-          if (item.imageUrl) {
+          const item = itemsWithImages[data.row.index];
+          if (item.base64Img) {
             try {
-              // This is a simplified way. In production, pre-load images.
-              // doc.addImage(item.imageUrl, 'JPEG', data.cell.x + 2, data.cell.y + 2, 20, 20);
-              // Since we can't easily async load inside didDrawCell, we rely on browser cache or just link.
-              // For this demo, let's try to add the image if it's a valid URL.
-              // Note: addImage is synchronous.
-              // We will just put a text "IMG" if we can't load it easily without async prep.
-              // User asked for "Big Images".
-              // Let's try to just render the text "Image" for now to avoid CORS crashes, 
-              // or better, use a link.
-              // Actually, let's try to render the image if it's a base64 or simple URL.
-              // doc.addImage(item.imageUrl, 'JPEG', data.cell.x + 2, data.cell.y + 2, 20, 20);
+              // Draw image centered in cell
+              const dim = 40; // 40mm square
+              const x = data.cell.x + (data.cell.width - dim) / 2;
+              const y = data.cell.y + (data.cell.height - dim) / 2;
+              doc.addImage(item.base64Img, 'JPEG', x, y, dim, dim);
             } catch (err) {
-              // ignore
+              console.error('PDF addImage failed', err);
             }
           }
         }
       }
     });
-
-    // Since async image loading for PDF is tricky in this synchronous flow, 
-    // and we want to ensure stability, I will use a simpler approach for now:
-    // I will assume images might not render perfectly without a proxy.
-    // But I will add the code to ATTEMPT it.
-
-    // To make images work in autoTable, we usually need base64. 
-    // I'll skip the complex base64 conversion for this specific step to ensure the PDF generates at all.
-    // I will layout the text nicely.
 
     doc.save(`order_${order.id}.pdf`);
   };
@@ -607,30 +622,44 @@ const OrderHistoryManager: React.FC = () => {
                 <tbody>
                   {[...order.items]
                     .sort((a, b) => (a.department || '').localeCompare(b.department || ''))
-                    .map((item, idx) => (
-                      <tr key={idx} className="border-b border-slate-50 last:border-0">
-                        <td className="p-2 pl-4">
-                          <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
-                            <img src={item.imageUrl || 'https://via.placeholder.com/150'} alt="Product" className="w-full h-full object-cover" />
-                          </div>
-                        </td>
-                        <td className="p-2">
-                          <div className="text-slate-800 font-medium">{item.productNameCN}</div>
-                          <div className="text-slate-400 text-xs">{item.productNameFR}</div>
-                        </td>
-                        <td className="p-2 text-slate-500 text-xs">
-                          <span className="bg-slate-100 px-2 py-1 rounded-full">{item.department || '-'}</span>
-                        </td>
-                        <td className="p-2 text-center">
-                          {item.taxable ? <span className="text-amber-600 text-xs font-bold bg-amber-50 px-2 py-1 rounded">Tax</span> : <span className="text-slate-300">-</span>}
-                        </td>
-                        <td className="p-2 text-right text-slate-700">
-                          {item.quantity} <span className="text-xs text-slate-400 uppercase">{item.isCase ? 'Case' : 'Unit'}</span>
-                        </td>
-                        <td className="p-2 text-right text-slate-700">${item.unitPrice.toFixed(2)}</td>
-                        <td className="p-2 text-right font-medium pr-4">${item.totalLine.toFixed(2)}</td>
-                      </tr>
-                    ))}
+                    .map((item, idx) => {
+                      // Fallback logic for UI display
+                      let displayImage = item.imageUrl;
+                      let displayDept = item.department;
+
+                      if (!displayImage || !displayDept) {
+                        const product = products.find(p => p.nameCN === item.productNameCN);
+                        if (product) {
+                          if (!displayImage) displayImage = product.imageUrl;
+                          if (!displayDept) displayDept = product.department;
+                        }
+                      }
+
+                      return (
+                        <tr key={idx} className="border-b border-slate-50 last:border-0">
+                          <td className="p-2 pl-4">
+                            <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+                              <img src={displayImage || 'https://via.placeholder.com/150'} alt="Product" className="w-full h-full object-cover" />
+                            </div>
+                          </td>
+                          <td className="p-2">
+                            <div className="text-slate-800 font-medium">{item.productNameCN}</div>
+                            <div className="text-slate-400 text-xs">{item.productNameFR}</div>
+                          </td>
+                          <td className="p-2 text-slate-500 text-xs">
+                            <span className="bg-slate-100 px-2 py-1 rounded-full">{displayDept || '-'}</span>
+                          </td>
+                          <td className="p-2 text-center">
+                            {item.taxable ? <span className="text-amber-600 text-xs font-bold bg-amber-50 px-2 py-1 rounded">Tax</span> : <span className="text-slate-300">-</span>}
+                          </td>
+                          <td className="p-2 text-right text-slate-700">
+                            {item.quantity} <span className="text-xs text-slate-400 uppercase">{item.isCase ? 'Case' : 'Unit'}</span>
+                          </td>
+                          <td className="p-2 text-right text-slate-700">${item.unitPrice.toFixed(2)}</td>
+                          <td className="p-2 text-right font-medium pr-4">${item.totalLine.toFixed(2)}</td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>

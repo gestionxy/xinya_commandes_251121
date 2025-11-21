@@ -25,6 +25,7 @@ export const Login: React.FC<{ onGuest: () => void }> = ({ onGuest }) => {
       }
       register(companyName, email, password);
     } else {
+      // Check for exact match on "email" field (which now acts as username/email)
       const user = users.find(u => u.email === email && u.password === password && u.role === role);
       if (user) {
         login(user);
@@ -82,8 +83,8 @@ export const Login: React.FC<{ onGuest: () => void }> = ({ onGuest }) => {
           <div className="relative">
             <UserCircle className="absolute left-3 top-3 text-slate-400" size={20} />
             <input 
-              type="email" 
-              placeholder="Email Address" 
+              type="text" 
+              placeholder={mode === 'login' ? "Email or Username" : "Email Address"} 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-indigo-400 transition-colors placeholder-slate-500"

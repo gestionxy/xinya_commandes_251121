@@ -3,8 +3,8 @@ import { Product, User, UserRole } from '../types';
 export const INITIAL_ADMIN: User = {
   id: 'admin-1',
   name: 'Super Admin',
-  email: 'admin@novaorder.com',
-  password: 'admin',
+  email: 'admin',
+  password: 'xinya-888',
   role: UserRole.ADMIN,
   discountRate: 1,
 };

@@ -31,7 +31,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // State initialization with localStorage fallback
   const [users, setUsers] = useState<User[]>(() => {
     const saved = localStorage.getItem('nova_users');
-    return saved ? JSON.parse(saved) : [...INITIAL_CLIENTS, INITIAL_ADMIN];
+    let initialUsers = saved ? JSON.parse(saved) : [...INITIAL_CLIENTS];
+
+    // FORCE UPDATE ADMIN: Remove old admin and add the fresh one
+    initialUsers = initialUsers.filter((u: User) => u.id !== INITIAL_ADMIN.id);
+    initialUsers.push(INITIAL_ADMIN);
+
+    return initialUsers;
   });
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem('nova_products');
@@ -47,7 +53,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Load initial data from Supabase if configured
   useEffect(() => {
-    if (isSupabaseConfigured && supabase) {
+    // FORCE DISABLE SUPABASE FOR LOCAL PERSISTENCE FIX
+    const enableSupabase = false;
+    if (enableSupabase && isSupabaseConfigured && supabase) {
       const fetchData = async () => {
         setIsLoading(true);
 
@@ -108,23 +116,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  // Persistence Effects
+  // Persistence Effects - ALWAYS RUN
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      localStorage.setItem('nova_users', JSON.stringify(users));
-    }
+    localStorage.setItem('nova_users', JSON.stringify(users));
   }, [users]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      localStorage.setItem('nova_products', JSON.stringify(products));
-    }
+    localStorage.setItem('nova_products', JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      localStorage.setItem('nova_orders', JSON.stringify(orders));
-    }
+    localStorage.setItem('nova_orders', JSON.stringify(orders));
   }, [orders]);
 
   const login = (user: User) => {

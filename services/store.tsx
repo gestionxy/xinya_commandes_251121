@@ -28,9 +28,19 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // State
-  const [users, setUsers] = useState<User[]>([...INITIAL_CLIENTS, INITIAL_ADMIN]);
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [orders, setOrders] = useState<Order[]>([]);
+  // State initialization with localStorage fallback
+  const [users, setUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('nova_users');
+    return saved ? JSON.parse(saved) : [...INITIAL_CLIENTS, INITIAL_ADMIN];
+  });
+  const [products, setProducts] = useState<Product[]>(() => {
+    const saved = localStorage.getItem('nova_products');
+    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+  });
+  const [orders, setOrders] = useState<Order[]>(() => {
+    const saved = localStorage.getItem('nova_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +50,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isSupabaseConfigured && supabase) {
       const fetchData = async () => {
         setIsLoading(true);
-        
+
         // Fetch Products
         const { data: dbProducts } = await supabase.from('products').select('*');
         if (dbProducts) {
@@ -58,19 +68,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Fetch Clients (Profiles) - usually restricted in real app, simplified here
         const { data: dbProfiles } = await supabase.from('profiles').select('*');
         if (dbProfiles) {
-           const formattedUsers = dbProfiles.map((p: any) => ({
-             id: p.id,
-             name: p.company_name || 'Unknown',
-             email: p.email,
-             role: p.role,
-             phone: p.phone,
-             address: p.address,
-             paymentMethod: p.payment_method,
-             discountRate: p.discount_rate || 1,
-             password: 'encrypted' // Won't support real login in this mock-hybrid view without full Auth rewrite
-           }));
-           // Merge with Admin for login check purposes in this simple version
-           setUsers([...formattedUsers, INITIAL_ADMIN]);
+          const formattedUsers = dbProfiles.map((p: any) => ({
+            id: p.id,
+            name: p.company_name || 'Unknown',
+            email: p.email,
+            role: p.role,
+            phone: p.phone,
+            address: p.address,
+            paymentMethod: p.payment_method,
+            discountRate: p.discount_rate || 1,
+            password: 'encrypted' // Won't support real login in this mock-hybrid view without full Auth rewrite
+          }));
+          // Merge with Admin for login check purposes in this simple version
+          setUsers([...formattedUsers, INITIAL_ADMIN]);
         }
 
         // Fetch Orders
@@ -91,12 +101,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }));
           setOrders(formattedOrders);
         }
-        
+
         setIsLoading(false);
       };
       fetchData();
     }
   }, []);
+
+  // Persistence Effects
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('nova_users', JSON.stringify(users));
+    }
+  }, [users]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('nova_products', JSON.stringify(products));
+    }
+  }, [products]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('nova_orders', JSON.stringify(orders));
+    }
+  }, [orders]);
 
   const login = (user: User) => {
     setCurrentUser(user);
@@ -139,7 +168,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addToCart = (product: Product, quantity: number, isCase: boolean) => {
     setCart(prev => {
       const existingIndex = prev.findIndex(item => item.productId === product.id && item.isCase === isCase);
-      
+
       if (existingIndex > -1) {
         const newQuantity = prev[existingIndex].quantity + quantity;
         if (newQuantity <= 0) {
@@ -253,10 +282,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         image_url: product.imageUrl,
         stock: product.stock
       }).select();
-      
+
       if (data) {
         // Use the real ID from DB
-        product.id = data[0].id; 
+        product.id = data[0].id;
       }
     }
     setProducts(prev => [...prev, product]);

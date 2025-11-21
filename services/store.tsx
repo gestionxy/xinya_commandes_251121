@@ -53,9 +53,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Load initial data from Supabase if configured
   useEffect(() => {
-    // FORCE DISABLE SUPABASE FOR LOCAL PERSISTENCE FIX
-    const enableSupabase = false;
-    if (enableSupabase && isSupabaseConfigured && supabase) {
+    if (isSupabaseConfigured && supabase) {
       const fetchData = async () => {
         setIsLoading(true);
 
@@ -92,7 +90,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         // Fetch Orders
-        const { data: dbOrders } = await supabase.from('orders').select('*');
+        const { data: dbOrders, error: ordersError } = await supabase.from('orders').select('*');
+        if (ordersError) console.error("Error fetching orders:", ordersError);
         if (dbOrders) {
           const formattedOrders = dbOrders.map((o: any) => ({
             id: o.id,
@@ -112,21 +111,27 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         setIsLoading(false);
       };
-      fetchData();
+      fetchData().catch(err => console.error("Error in initial fetch:", err));
     }
   }, []);
 
-  // Persistence Effects - ALWAYS RUN
+  // Persistence Effects
   useEffect(() => {
-    localStorage.setItem('nova_users', JSON.stringify(users));
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('nova_users', JSON.stringify(users));
+    }
   }, [users]);
 
   useEffect(() => {
-    localStorage.setItem('nova_products', JSON.stringify(products));
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('nova_products', JSON.stringify(products));
+    }
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('nova_orders', JSON.stringify(orders));
+    if (!isSupabaseConfigured) {
+      localStorage.setItem('nova_orders', JSON.stringify(orders));
+    }
   }, [orders]);
 
   const login = (user: User) => {
@@ -154,13 +159,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isSupabaseConfigured && supabase) {
       // In a real app, use supabase.auth.signUp
       // For this hybrid demo, we insert into a profiles table
-      await supabase.from('profiles').insert({
+      const { error } = await supabase.from('profiles').insert({
         id: newUser.id, // In real auth this comes from auth.users
         email: email,
         company_name: name,
         role: 'client',
         discount_rate: 1.0
       });
+      if (error) {
+        console.error("Error registering user:", error);
+        alert("Registration failed to save to database. Please check console.");
+      }
     }
 
     setUsers([...users, newUser]);

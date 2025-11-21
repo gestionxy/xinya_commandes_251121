@@ -7,7 +7,7 @@ export const Login: React.FC<{ onGuest: () => void }> = ({ onGuest }) => {
   const { login, register, users } = useStore();
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [role, setRole] = useState<UserRole>(UserRole.CLIENT);
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -51,13 +51,13 @@ export const Login: React.FC<{ onGuest: () => void }> = ({ onGuest }) => {
         {/* Role Selection Tabs */}
         {mode === 'login' && (
           <div className="flex p-1 bg-slate-800/50 rounded-lg mb-6">
-            <button 
+            <button
               onClick={() => setRole(UserRole.CLIENT)}
               className={`flex-1 flex items-center justify-center py-2 rounded-md transition-all ${role === UserRole.CLIENT ? 'bg-indigo-600 shadow-lg text-white' : 'text-slate-400 hover:text-white'}`}
             >
               <UserCircle size={18} className="mr-2" /> Client
             </button>
-            <button 
+            <button
               onClick={() => setRole(UserRole.ADMIN)}
               className={`flex-1 flex items-center justify-center py-2 rounded-md transition-all ${role === UserRole.ADMIN ? 'bg-rose-600 shadow-lg text-white' : 'text-slate-400 hover:text-white'}`}
             >
@@ -70,9 +70,9 @@ export const Login: React.FC<{ onGuest: () => void }> = ({ onGuest }) => {
           {mode === 'register' && (
             <div className="relative">
               <Briefcase className="absolute left-3 top-3 text-slate-400" size={20} />
-              <input 
-                type="text" 
-                placeholder="Company Name" 
+              <input
+                type="text"
+                placeholder="Company Name"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 className="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-indigo-400 transition-colors placeholder-slate-500"
@@ -82,9 +82,11 @@ export const Login: React.FC<{ onGuest: () => void }> = ({ onGuest }) => {
 
           <div className="relative">
             <UserCircle className="absolute left-3 top-3 text-slate-400" size={20} />
-            <input 
-              type="text" 
-              placeholder={mode === 'login' ? "Email or Username" : "Email Address"} 
+            <input
+              type="text"
+              name="username"
+              autoComplete="username"
+              placeholder={mode === 'login' ? "Email or Username" : "Email Address"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-indigo-400 transition-colors placeholder-slate-500"
@@ -95,9 +97,9 @@ export const Login: React.FC<{ onGuest: () => void }> = ({ onGuest }) => {
             <div className="absolute left-3 top-3 text-slate-400 cursor-pointer" onClick={() => setShowPassword(!showPassword)}>
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </div>
-            <input 
-              type={showPassword ? "text" : "password"} 
-              placeholder="Password" 
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-indigo-400 transition-colors placeholder-slate-500"

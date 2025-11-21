@@ -46,6 +46,9 @@ export interface Order {
     unitPrice: number;
     isCase: boolean;
     totalLine: number;
+    imageUrl?: string;
+    department?: string;
+    taxable?: boolean;
   }[];
   subTotal: number;
   discountAmount: number; // Saved amount

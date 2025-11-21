@@ -235,7 +235,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         quantity: item.quantity,
         unitPrice: discountedPrice,
         isCase: item.isCase,
-        totalLine: lineTotal
+        totalLine: lineTotal,
+        imageUrl: product.imageUrl,
+        department: product.department,
+        taxable: product.taxable
       };
     }).filter((item): item is NonNullable<typeof item> => item !== null);
 

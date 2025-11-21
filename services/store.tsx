@@ -244,8 +244,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const total = subTotal + tpsTotal + tvqTotal;
 
+    // Generate ID: ClientName_yyyymmddmmss
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[-:T.]/g, '').slice(0, 14); // yyyymmddmmss
+    const safeName = currentUser.name.replace(/\s+/g, ''); // Remove spaces for cleaner ID
+    const newOrderId = `${safeName}_${timestamp}`;
+
     const newOrder: Order = {
-      id: `ord-${Date.now()}`,
+      id: newOrderId,
       userId: currentUser.id,
       userName: currentUser.name,
       date: new Date().toISOString(),

@@ -486,6 +486,14 @@ const OrderHistoryManager: React.FC = () => {
     });
   };
 
+  // Helper to sanitize text for PDF (remove non-Latin characters to prevent garbled text)
+  const sanitizeForPdf = (str: string) => {
+    // Remove characters that are not in the Latin-1 supplement range (roughly)
+    // This is a basic fix. Ideally, we'd embed a font, but that's heavy for this demo.
+    // We will keep ASCII and Latin-1 (French accents).
+    return str.replace(/[^\x00-\xFF]/g, '').trim();
+  };
+
   const generatePDF = async (order: Order) => {
     const doc = new jsPDF();
 
@@ -494,7 +502,8 @@ const OrderHistoryManager: React.FC = () => {
     doc.text(`Order #${order.id}`, 14, 22);
 
     doc.setFontSize(12);
-    doc.text(`Client: ${order.userName}`, 14, 32);
+    // Sanitize user name just in case
+    doc.text(`Client: ${sanitizeForPdf(order.userName)}`, 14, 32);
     doc.text(`Date: ${new Date(order.date).toLocaleDateString()}`, 14, 38);
     doc.text(`Total: $${order.total.toFixed(2)}`, 14, 44);
 
@@ -510,24 +519,56 @@ const OrderHistoryManager: React.FC = () => {
       // 1. Try item.imageUrl
       // 2. Fallback to finding product in store
       let imageUrl = item.imageUrl;
+      let productExists = true;
+
       if (!imageUrl) {
-        // Try to find by name (fuzzy match) or just rely on what we have
-        // Since we don't store product ID in order items (oops), we try name
         const product = products.find(p => p.nameCN === item.productNameCN);
-        if (product) imageUrl = product.imageUrl;
+        if (product) {
+          imageUrl = product.imageUrl;
+        } else {
+          productExists = false;
+        }
       }
 
       let base64Img: string | null = null;
       if (imageUrl && !imageUrl.includes('placeholder')) {
         base64Img = await getDataUrl(imageUrl);
       }
-      return { ...item, base64Img, finalDepartment: item.department || (products.find(p => p.nameCN === item.productNameCN)?.department) || '-' };
+
+      // Determine department text for PDF (Strip Chinese)
+      // Department format is usually "French / Chinese"
+      let deptText = item.department || (products.find(p => p.nameCN === item.productNameCN)?.department) || '-';
+      if (deptText.includes('/')) {
+        deptText = deptText.split('/')[0].trim(); // Take the first part (French)
+      }
+
+      // Fallback for taxable status
+      // If item.taxable is false/undefined, check if the product exists and is taxable.
+      // This fixes legacy orders where taxable status might not have been saved but tax was collected.
+      let isTaxable = item.taxable;
+      if (!isTaxable) {
+        const product = products.find(p => p.nameCN === item.productNameCN);
+        if (product && product.taxable) {
+          isTaxable = true;
+        }
+      }
+
+      return {
+        ...item,
+        base64Img,
+        finalDepartment: deptText,
+        productExists,
+        finalTaxable: isTaxable
+      };
     }));
 
     const tableBody = itemsWithImages.map((item) => {
+      // Use FR name for PDF to avoid garbled Chinese
+      const nameDisplay = item.productNameFR || sanitizeForPdf(item.productNameCN);
+
       return [
         '', // Image placeholder
-        `${item.productNameCN}\n${item.productNameFR}\nDept: ${item.finalDepartment}\nTax: ${item.taxable ? 'Yes' : 'No'}`,
+        `${nameDisplay}\nDept: ${sanitizeForPdf(item.finalDepartment)}\nTax: ${item.finalTaxable ? 'Yes' : 'No'}`,
         item.isCase ? 'Case' : 'Unit',
         item.quantity,
         `$${item.unitPrice.toFixed(2)}`,
@@ -559,6 +600,10 @@ const OrderHistoryManager: React.FC = () => {
             } catch (err) {
               console.error('PDF addImage failed', err);
             }
+          } else {
+            // Draw "No Image" text
+            doc.setFontSize(8);
+            doc.text("Image N/A", data.cell.x + 10, data.cell.y + 20);
           }
         }
       }
@@ -626,20 +671,32 @@ const OrderHistoryManager: React.FC = () => {
                       // Fallback logic for UI display
                       let displayImage = item.imageUrl;
                       let displayDept = item.department;
+                      let displayTax = item.taxable;
+                      let productExists = true;
 
-                      if (!displayImage || !displayDept) {
+                      if (!displayImage || !displayDept || displayTax === undefined) {
                         const product = products.find(p => p.nameCN === item.productNameCN);
                         if (product) {
                           if (!displayImage) displayImage = product.imageUrl;
                           if (!displayDept) displayDept = product.department;
+                          if (displayTax === undefined) displayTax = product.taxable;
+                        } else {
+                          // Product not found in current inventory
+                          if (!displayImage) productExists = false;
                         }
                       }
 
                       return (
                         <tr key={idx} className="border-b border-slate-50 last:border-0">
                           <td className="p-2 pl-4">
-                            <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
-                              <img src={displayImage || 'https://via.placeholder.com/150'} alt="Product" className="w-full h-full object-cover" />
+                            <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center text-center">
+                              {productExists && displayImage ? (
+                                <img src={displayImage} alt="Product" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[10px] text-slate-400 leading-tight p-1">
+                                  图片已无或商品已失效
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="p-2">
@@ -650,7 +707,7 @@ const OrderHistoryManager: React.FC = () => {
                             <span className="bg-slate-100 px-2 py-1 rounded-full">{displayDept || '-'}</span>
                           </td>
                           <td className="p-2 text-center">
-                            {item.taxable ? <span className="text-amber-600 text-xs font-bold bg-amber-50 px-2 py-1 rounded">Tax</span> : <span className="text-slate-300">-</span>}
+                            {displayTax ? <span className="text-amber-600 text-xs font-bold bg-amber-50 px-2 py-1 rounded">Tax</span> : <span className="text-slate-300">-</span>}
                           </td>
                           <td className="p-2 text-right text-slate-700">
                             {item.quantity} <span className="text-xs text-slate-400 uppercase">{item.isCase ? 'Case' : 'Unit'}</span>

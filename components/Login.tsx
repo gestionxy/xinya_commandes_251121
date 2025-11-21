@@ -86,7 +86,7 @@ export const Login: React.FC<{ onGuest: () => void }> = ({ onGuest }) => {
               type="text"
               name="username"
               autoComplete="username"
-              placeholder={mode === 'login' ? "Email or Username" : "Email Address"}
+              placeholder={mode === 'login' ? "Email or Username (v2)" : "Email Address"}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-slate-800/50 border border-slate-600 rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-indigo-400 transition-colors placeholder-slate-500"

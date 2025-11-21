@@ -22,6 +22,7 @@ interface StoreContextType {
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -83,7 +84,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             address: p.address,
             paymentMethod: p.payment_method,
             discountRate: p.discount_rate || 1,
-            password: 'encrypted' // Won't support real login in this mock-hybrid view without full Auth rewrite
+            password: p.password || 'encrypted' // Now fetching actual password for demo login check
           }));
           // Merge with Admin for login check purposes in this simple version
           setUsers([...formattedUsers, INITIAL_ADMIN]);
@@ -162,6 +163,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const { error } = await supabase.from('profiles').insert({
         id: newUser.id, // In real auth this comes from auth.users
         email: email,
+        password: password, // Storing plain text for demo login compatibility
         company_name: name,
         role: 'client',
         discount_rate: 1.0
@@ -281,6 +283,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
   };
 
+  const deleteUser = async (id: string) => {
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('profiles').delete().eq('id', id);
+    }
+    setUsers(prev => prev.filter(u => u.id !== id));
+  };
+
   const addProduct = async (product: Product) => {
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.from('products').insert({
@@ -329,7 +338,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       currentUser, users, products, orders, cart, isLoading,
       login, logout, register,
       addToCart, removeFromCart, clearCart, placeOrder,
-      updateUser, addProduct, updateProduct, deleteProduct
+      updateUser, addProduct, updateProduct, deleteProduct, deleteUser
     }}>
       {children}
     </StoreContext.Provider>

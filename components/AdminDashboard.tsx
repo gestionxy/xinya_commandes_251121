@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useStore } from '../services/store';
 import { User, Product, DEPARTMENTS, Order } from '../types';
-import { 
-  Users, Package, FileText, Plus, Edit, Trash2, 
+import {
+  Users, Package, FileText, Plus, Edit, Trash2,
   Search, Upload, LogOut, ChevronDown, Check, X, Filter
 } from 'lucide-react';
 
@@ -21,27 +21,27 @@ export const AdminDashboard: React.FC = () => {
           </h2>
         </div>
         <nav className="p-4 space-y-2 flex-1">
-          <SidebarItem 
-            icon={<Users size={20}/>} 
-            label="Clients" 
-            active={activeTab === 'clients'} 
-            onClick={() => setActiveTab('clients')} 
+          <SidebarItem
+            icon={<Users size={20} />}
+            label="Clients"
+            active={activeTab === 'clients'}
+            onClick={() => setActiveTab('clients')}
           />
-          <SidebarItem 
-            icon={<Package size={20}/>} 
-            label="Inventory" 
-            active={activeTab === 'products'} 
-            onClick={() => setActiveTab('products')} 
+          <SidebarItem
+            icon={<Package size={20} />}
+            label="Inventory"
+            active={activeTab === 'products'}
+            onClick={() => setActiveTab('products')}
           />
-          <SidebarItem 
-            icon={<FileText size={20}/>} 
-            label="Orders" 
-            active={activeTab === 'orders'} 
-            onClick={() => setActiveTab('orders')} 
+          <SidebarItem
+            icon={<FileText size={20} />}
+            label="Orders"
+            active={activeTab === 'orders'}
+            onClick={() => setActiveTab('orders')}
           />
         </nav>
         <div className="p-4 border-t border-gray-100">
-          <button 
+          <button
             onClick={logout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-50 transition-all"
           >
@@ -56,7 +56,7 @@ export const AdminDashboard: React.FC = () => {
         {/* Header for mobile/general */}
         <div className="flex justify-between items-center mb-8 md:hidden">
           <h1 className="text-2xl font-bold text-slate-800">Admin Panel</h1>
-          <button onClick={logout} className="text-slate-500"><LogOut size={24}/></button>
+          <button onClick={logout} className="text-slate-500"><LogOut size={24} /></button>
         </div>
 
         {activeTab === 'clients' && <ClientManager />}
@@ -67,12 +67,11 @@ export const AdminDashboard: React.FC = () => {
   );
 };
 
-const SidebarItem: React.FC<{icon: any, label: string, active: boolean, onClick: () => void}> = ({icon, label, active, onClick}) => (
-  <button 
+const SidebarItem: React.FC<{ icon: any, label: string, active: boolean, onClick: () => void }> = ({ icon, label, active, onClick }) => (
+  <button
     onClick={onClick}
-    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${
-      active ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-    }`}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${active ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+      }`}
   >
     {icon}
     {label}
@@ -81,7 +80,7 @@ const SidebarItem: React.FC<{icon: any, label: string, active: boolean, onClick:
 
 // --- Client Manager ---
 const ClientManager: React.FC = () => {
-  const { users, updateUser } = useStore();
+  const { users, updateUser, deleteUser } = useStore();
   const clients = users.filter(u => u.role === 'client');
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -119,13 +118,23 @@ const ClientManager: React.FC = () => {
                 <td className="p-4 text-slate-600 max-w-xs truncate">{client.address || '-'}</td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-lg text-xs font-bold ${client.discountRate < 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                    {client.discountRate} ({( (1 - client.discountRate) * 100 ).toFixed(0)}% Off)
+                    {client.discountRate} ({((1 - client.discountRate) * 100).toFixed(0)}% Off)
                   </span>
                 </td>
                 <td className="p-4 text-slate-600">{client.paymentMethod}</td>
                 <td className="p-4">
                   <button onClick={() => setEditingUser(client)} className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-lg transition-colors">
                     <Edit size={18} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Are you sure you want to delete client "${client.name}"? This action cannot be undone.`)) {
+                        deleteUser(client.id);
+                      }
+                    }}
+                    className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg transition-colors ml-2"
+                  >
+                    <Trash2 size={18} />
                   </button>
                 </td>
               </tr>
@@ -140,7 +149,7 @@ const ClientManager: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <h3 className="text-lg font-bold text-slate-800">Edit Client: {editingUser.name}</h3>
-              <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+              <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
             <form onSubmit={(e) => {
               e.preventDefault();
@@ -150,20 +159,20 @@ const ClientManager: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Phone</label>
-                  <input required type="text" value={editingUser.phone || ''} onChange={e => setEditingUser({...editingUser, phone: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"/>
+                  <input required type="text" value={editingUser.phone || ''} onChange={e => setEditingUser({ ...editingUser, phone: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all" />
                 </div>
                 <div>
-                   <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Discount (0.1 - 1.0)</label>
-                   <input required type="number" step="0.01" max="1" min="0.1" value={editingUser.discountRate} onChange={e => setEditingUser({...editingUser, discountRate: parseFloat(e.target.value)})} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"/>
+                  <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Discount (0.1 - 1.0)</label>
+                  <input required type="number" step="0.01" max="1" min="0.1" value={editingUser.discountRate} onChange={e => setEditingUser({ ...editingUser, discountRate: parseFloat(e.target.value) })} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Address</label>
-                <input required type="text" value={editingUser.address || ''} onChange={e => setEditingUser({...editingUser, address: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"/>
+                <input required type="text" value={editingUser.address || ''} onChange={e => setEditingUser({ ...editingUser, address: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Payment Method</label>
-                <select value={editingUser.paymentMethod || 'COD'} onChange={e => setEditingUser({...editingUser, paymentMethod: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 outline-none">
+                <select value={editingUser.paymentMethod || 'COD'} onChange={e => setEditingUser({ ...editingUser, paymentMethod: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 outline-none">
                   <option value="COD">Cash on Delivery</option>
                   <option value="Net 15">Net 15</option>
                   <option value="Net 30">Net 30</option>
@@ -224,10 +233,10 @@ const ProductManager: React.FC = () => {
         <h2 className="text-2xl font-bold text-slate-800">Product Inventory</h2>
         <div className="flex gap-2">
           <button className="flex items-center gap-2 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl transition-all text-sm font-medium">
-            <Upload size={18}/> Bulk Upload (Zip/Excel)
+            <Upload size={18} /> Bulk Upload (Zip/Excel)
           </button>
           <button onClick={openNew} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl shadow-lg shadow-indigo-600/30 transition-all text-sm font-medium">
-            <Plus size={18}/> Add Product
+            <Plus size={18} /> Add Product
           </button>
         </div>
       </div>
@@ -250,7 +259,7 @@ const ProductManager: React.FC = () => {
               <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
                 <td className="p-4">
                   <div className="w-12 h-12 rounded-lg bg-slate-100 overflow-hidden border border-slate-200">
-                    <img src={p.imageUrl} alt={p.nameFR} className="w-full h-full object-cover"/>
+                    <img src={p.imageUrl} alt={p.nameFR} className="w-full h-full object-cover" />
                   </div>
                 </td>
                 <td className="p-4">
@@ -265,18 +274,18 @@ const ProductManager: React.FC = () => {
                 <td className="p-4 text-right font-mono">${p.priceUnit.toFixed(2)}</td>
                 <td className="p-4 text-right font-mono">${p.priceCase.toFixed(2)}</td>
                 <td className="p-4 text-center">
-                  {p.taxable ? 
-                    <span className="text-amber-500 font-bold text-xs">TAX</span> : 
+                  {p.taxable ?
+                    <span className="text-amber-500 font-bold text-xs">TAX</span> :
                     <span className="text-slate-300 text-xs">NO</span>
                   }
                 </td>
                 <td className="p-4 text-right">
                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => openEdit(p)} className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-lg">
-                      <Edit size={18}/>
+                      <Edit size={18} />
                     </button>
                     <button onClick={() => deleteProduct(p.id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg">
-                      <Trash2 size={18}/>
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </td>
@@ -292,47 +301,47 @@ const ProductManager: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
               <h3 className="text-lg font-bold text-slate-800">{currentProduct.id ? 'Edit Product' : 'Add New Product'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
             <form onSubmit={handleSave} className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Name (Chinese)</label>
-                  <input required type="text" className="form-input" value={currentProduct.nameCN || ''} onChange={e => setCurrentProduct({...currentProduct, nameCN: e.target.value})} />
+                  <input required type="text" className="form-input" value={currentProduct.nameCN || ''} onChange={e => setCurrentProduct({ ...currentProduct, nameCN: e.target.value })} />
                 </div>
                 <div>
                   <label className="form-label">Name (French)</label>
-                  <input required type="text" className="form-input" value={currentProduct.nameFR || ''} onChange={e => setCurrentProduct({...currentProduct, nameFR: e.target.value})} />
+                  <input required type="text" className="form-input" value={currentProduct.nameFR || ''} onChange={e => setCurrentProduct({ ...currentProduct, nameFR: e.target.value })} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Department</label>
-                  <select className="form-input" value={currentProduct.department || DEPARTMENTS[0]} onChange={e => setCurrentProduct({...currentProduct, department: e.target.value})}>
+                  <select className="form-input" value={currentProduct.department || DEPARTMENTS[0]} onChange={e => setCurrentProduct({ ...currentProduct, department: e.target.value })}>
                     {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="form-label">Image URL</label>
-                  <input type="text" className="form-input" value={currentProduct.imageUrl || ''} onChange={e => setCurrentProduct({...currentProduct, imageUrl: e.target.value})} placeholder="http://..." />
+                  <input type="text" className="form-input" value={currentProduct.imageUrl || ''} onChange={e => setCurrentProduct({ ...currentProduct, imageUrl: e.target.value })} placeholder="http://..." />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
                   <label className="form-label">Unit Price ($)</label>
-                  <input required type="number" step="0.01" className="form-input bg-white" value={currentProduct.priceUnit || ''} onChange={e => setCurrentProduct({...currentProduct, priceUnit: parseFloat(e.target.value)})} />
+                  <input required type="number" step="0.01" className="form-input bg-white" value={currentProduct.priceUnit || ''} onChange={e => setCurrentProduct({ ...currentProduct, priceUnit: parseFloat(e.target.value) })} />
                 </div>
                 <div>
                   <label className="form-label">Case Price ($)</label>
-                  <input required type="number" step="0.01" className="form-input bg-white" value={currentProduct.priceCase || ''} onChange={e => setCurrentProduct({...currentProduct, priceCase: parseFloat(e.target.value)})} />
+                  <input required type="number" step="0.01" className="form-input bg-white" value={currentProduct.priceCase || ''} onChange={e => setCurrentProduct({ ...currentProduct, priceCase: parseFloat(e.target.value) })} />
                 </div>
                 <div className="flex items-center h-full pt-6">
-                   <label className="flex items-center gap-3 cursor-pointer">
-                     <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" checked={currentProduct.taxable || false} onChange={e => setCurrentProduct({...currentProduct, taxable: e.target.checked})} />
-                     <span className="text-sm font-medium text-slate-700">Taxable (1)</span>
-                   </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" checked={currentProduct.taxable || false} onChange={e => setCurrentProduct({ ...currentProduct, taxable: e.target.checked })} />
+                    <span className="text-sm font-medium text-slate-700">Taxable (1)</span>
+                  </label>
                 </div>
               </div>
 
@@ -351,18 +360,18 @@ const ProductManager: React.FC = () => {
 const OrderHistoryManager: React.FC = () => {
   const { orders, users } = useStore();
   const [filterClient, setFilterClient] = useState<string>('all');
-  
+
   const filteredOrders = orders.filter(o => filterClient === 'all' || o.userId === filterClient);
   const sortedOrders = [...filteredOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return (
     <div className="space-y-6 animate-fade-in">
-       <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">Order History</h2>
         <div className="flex items-center gap-2">
           <Filter size={18} className="text-slate-400" />
-          <select 
-            value={filterClient} 
+          <select
+            value={filterClient}
             onChange={(e) => setFilterClient(e.target.value)}
             className="bg-white border border-slate-200 text-sm rounded-lg p-2.5 focus:border-indigo-500 outline-none"
           >
@@ -415,12 +424,12 @@ const OrderHistoryManager: React.FC = () => {
                 </tbody>
               </table>
             </div>
-            
+
             <div className="mt-4 flex justify-end text-sm text-slate-600 gap-6 bg-slate-50 p-3 rounded-xl">
-               <div>Subtotal: <span className="font-bold">${order.subTotal.toFixed(2)}</span></div>
-               <div>TPS (5%): <span className="font-bold">${order.taxTPS.toFixed(2)}</span></div>
-               <div>TVQ (9.975%): <span className="font-bold">${order.taxTVQ.toFixed(2)}</span></div>
-               <div className="text-indigo-600">Total: <span className="font-bold">${order.total.toFixed(2)}</span></div>
+              <div>Subtotal: <span className="font-bold">${order.subTotal.toFixed(2)}</span></div>
+              <div>TPS (5%): <span className="font-bold">${order.taxTPS.toFixed(2)}</span></div>
+              <div>TVQ (9.975%): <span className="font-bold">${order.taxTVQ.toFixed(2)}</span></div>
+              <div className="text-indigo-600">Total: <span className="font-bold">${order.total.toFixed(2)}</span></div>
             </div>
           </div>
         ))}

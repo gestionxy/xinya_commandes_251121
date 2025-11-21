@@ -2,6 +2,7 @@
 create table public.profiles (
   id text primary key,
   email text,
+  password text,
   company_name text,
   role text default 'client',
   phone text,

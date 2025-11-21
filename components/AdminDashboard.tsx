@@ -291,58 +291,88 @@ const ProductManager: React.FC = () => {
       </div>
 
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        {/* Select All Header */}
-        <div className="bg-slate-50 border-b border-slate-200 p-4 flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={selectedIds.size === products.length && products.length > 0}
-            onChange={handleSelectAll}
-            className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-          />
-          <span className="font-bold text-slate-700 text-sm">Select All ({products.length})</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-          {sortedProducts.map(product => (
-            <div key={product.id} className={`bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all relative group ${selectedIds.has(product.id) ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/30' : 'border-slate-200'}`}>
-              <div className="absolute top-4 left-4 z-10">
+        <table className="w-full">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="p-4 w-12 text-center">
                 <input
                   type="checkbox"
-                  checked={selectedIds.has(product.id)}
-                  onChange={() => handleSelect(product.id)}
-                  className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                  checked={selectedIds.size === products.length && products.length > 0}
+                  onChange={handleSelectAll}
+                  className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                 />
-              </div>
-              <div className="aspect-square rounded-xl bg-slate-100 mb-4 overflow-hidden relative">
-                <img src={product.imageUrl || 'https://via.placeholder.com/300'} alt={product.nameCN} className="w-full h-full object-cover" />
-                <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-bold text-slate-600 shadow-sm">
-                  {product.department}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-slate-800">{product.nameCN}</h3>
-                    <p className="text-sm text-slate-500">{product.nameFR}</p>
+              </th>
+              <th className="p-4 text-left text-sm font-bold text-slate-600">Image</th>
+              <th className="p-4 text-left text-sm font-bold text-slate-600">Name (CN / FR)</th>
+              <th className="p-4 text-left text-sm font-bold text-slate-600">Department</th>
+              <th className="p-4 text-right text-sm font-bold text-slate-600">Price (Unit)</th>
+              <th className="p-4 text-right text-sm font-bold text-slate-600">Price (Case)</th>
+              <th className="p-4 text-right text-sm font-bold text-slate-600">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {sortedProducts.map(product => (
+              <tr key={product.id} className={`hover:bg-slate-50 transition-colors group ${selectedIds.has(product.id) ? 'bg-indigo-50/30' : ''}`}>
+                <td className="p-4 text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(product.id)}
+                    onChange={() => handleSelect(product.id)}
+                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                </td>
+                <td className="p-4">
+                  <div className="w-16 h-16 rounded-lg bg-slate-100 overflow-hidden border border-slate-200">
+                    <img
+                      src={product.imageUrl || 'https://via.placeholder.com/300'}
+                      alt={product.nameCN}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <div className="text-right">
-                    <div className="font-bold text-indigo-600">${product.priceUnit.toFixed(2)}</div>
-                    {product.priceCase > 0 && <div className="text-xs text-slate-400">Case: ${product.priceCase.toFixed(2)}</div>}
+                </td>
+                <td className="p-4">
+                  <div className="font-bold text-slate-800">{product.nameCN}</div>
+                  <div className="text-sm text-slate-500">{product.nameFR}</div>
+                </td>
+                <td className="p-4">
+                  <span className="inline-block px-3 py-1 rounded-full bg-slate-100 text-xs font-bold text-slate-600">
+                    {product.department}
+                  </span>
+                </td>
+                <td className="p-4 text-right font-bold text-indigo-600">
+                  ${product.priceUnit.toFixed(2)}
+                </td>
+                <td className="p-4 text-right text-slate-600">
+                  {product.priceCase > 0 ? `$${product.priceCase.toFixed(2)}` : '-'}
+                </td>
+                <td className="p-4 text-right">
+                  <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => setIsEditing(product)}
+                      className="p-2 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      className="p-2 hover:bg-rose-100 text-rose-600 rounded-lg transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
-                </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
 
-                <div className="pt-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => setIsEditing(product)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold text-sm transition-colors">
-                    Edit
-                  </button>
-                  <button onClick={() => handleDelete(product.id)} className="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-600 py-2 rounded-lg font-bold text-sm transition-colors">
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        {products.length === 0 && (
+          <div className="p-12 text-center text-slate-400">
+            <p>No products found. Add a product or use Bulk Upload.</p>
+          </div>
+        )}
       </div>
 
       {/* Add/Edit Product Modal */}

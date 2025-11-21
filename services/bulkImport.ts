@@ -63,15 +63,18 @@ export const parseAndImport = async (
 
                 let imageUrl = row.imageUrl || 'https://via.placeholder.com/300';
 
+                // Determine filename from either imageFilename or imageUrl (if it looks like a filename)
+                const potentialFilename = row.imageFilename || (row.imageUrl && !row.imageUrl.startsWith('http') ? row.imageUrl : null);
+
                 // Handle Image Upload from Zip
-                if (zipFile && row.imageFilename && zipImages[row.imageFilename]) {
+                if (zipFile && potentialFilename && zipImages[potentialFilename]) {
                     onProgress(`Uploading image for ${row.nameCN}...`);
-                    const imageBlob = zipImages[row.imageFilename];
-                    const storagePath = `bulk_${Date.now()}_${row.imageFilename}`;
+                    const imageBlob = zipImages[potentialFilename];
+                    const storagePath = `bulk_${Date.now()}_${potentialFilename}`;
 
                     if (supabase) {
                         // Detect file extension for Content-Type
-                        const fileExt = row.imageFilename.split('.').pop()?.toLowerCase() || 'jpg';
+                        const fileExt = potentialFilename.split('.').pop()?.toLowerCase() || 'jpg';
                         const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
 
                         const { data: uploadData, error: uploadError } = await supabase.storage

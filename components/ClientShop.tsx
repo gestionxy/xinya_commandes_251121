@@ -46,7 +46,7 @@ export const ClientShop: React.FC<{ isGuest: boolean, onExitGuest: () => void }>
              <ShoppingCart className="text-white" size={18} />
           </div>
           <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 hidden md:block">
-            NovaOrder
+            Supermarché Xinya
           </h1>
         </div>
 

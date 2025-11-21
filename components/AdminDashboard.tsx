@@ -192,155 +192,204 @@ const ClientManager: React.FC = () => {
 
 // --- Product Manager ---
 const ProductManager: React.FC = () => {
-  const { products, addProduct, updateProduct, deleteProduct, bulkImportProducts } = useStore();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { products, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, bulkImportProducts } = useStore();
+  const [isEditing, setIsEditing] = useState<Partial<Product> | null>(null);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
-  const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentProduct.id) {
-      updateProduct(currentProduct as Product);
-    } else {
-      addProduct({
-        ...currentProduct,
-        id: `prod-${Date.now()}`,
-        stock: currentProduct.stock || 100,
-        imageUrl: currentProduct.imageUrl || 'https://via.placeholder.com/300'
-      } as Product);
+  // Sorting: Department first, then Price
+  const sortedProducts = [...products].sort((a, b) => {
+    if (a.department !== b.department) {
+      return a.department.localeCompare(b.department);
     }
-    setIsModalOpen(false);
-    setCurrentProduct({});
+    return a.priceUnit - b.priceUnit;
+  });
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(new Set(products.map(p => p.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
   };
 
-  const openEdit = (p: Product) => {
-    setCurrentProduct(p);
-    setIsModalOpen(true);
+  const handleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
   };
 
-  const openNew = () => {
-    setCurrentProduct({
-      taxable: false,
-      priceUnit: 0,
-      priceCase: 0,
-      department: DEPARTMENTS[0]
-    });
-    setIsModalOpen(true);
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.size} products?`)) {
+      await bulkDeleteProducts(Array.from(selectedIds));
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEditing) return;
+
+    // If it has an ID and exists in products, update it. Otherwise add it.
+    // Note: For new products we generate a temp ID in openNew, but check if it exists.
+    const existing = products.find(p => p.id === isEditing.id);
+
+    if (existing) {
+      await updateProduct(isEditing as Product);
+    } else {
+      await addProduct(isEditing as Product);
+    }
+    setIsEditing(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Delete this product?')) {
+      await deleteProduct(id);
+    }
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-slate-800">Product Inventory</h2>
-        <div className="flex gap-2">
-          <button onClick={() => setIsBulkOpen(true)} className="flex items-center gap-2 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl transition-all text-sm font-medium">
-            <Upload size={18} /> Bulk Upload (Zip/Excel)
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-800">Inventory Management</h2>
+        <div className="flex gap-3">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="bg-rose-100 hover:bg-rose-200 text-rose-700 px-4 py-2 rounded-xl font-bold transition-colors flex items-center gap-2"
+            >
+              <Trash2 size={18} /> Delete ({selectedIds.size})
+            </button>
+          )}
+          <button
+            onClick={() => setIsBulkOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2"
+          >
+            <Upload size={18} /> Bulk Upload
           </button>
-          <button onClick={openNew} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl shadow-lg shadow-indigo-600/30 transition-all text-sm font-medium">
+          <button
+            onClick={() => setIsEditing({
+              id: crypto.randomUUID(),
+              nameCN: '',
+              nameFR: '',
+              priceUnit: 0,
+              priceCase: 0,
+              imageUrl: '',
+              department: DEPARTMENTS[0],
+              taxable: false,
+              stock: 100
+            })}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2"
+          >
             <Plus size={18} /> Add Product
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200 text-slate-500">
-            <tr>
-              <th className="p-4 w-20">Image</th>
-              <th className="p-4 font-semibold">Name (CN / FR)</th>
-              <th className="p-4 font-semibold">Department</th>
-              <th className="p-4 font-semibold text-right">Unit Price</th>
-              <th className="p-4 font-semibold text-right">Case Price</th>
-              <th className="p-4 font-semibold text-center">Tax</th>
-              <th className="p-4 font-semibold text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {products.map(p => (
-              <tr key={p.id} className="hover:bg-slate-50 transition-colors group">
-                <td className="p-4">
-                  <div className="w-12 h-12 rounded-lg bg-slate-100 overflow-hidden border border-slate-200">
-                    <img src={p.imageUrl} alt={p.nameFR} className="w-full h-full object-cover" />
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        {/* Select All Header */}
+        <div className="bg-slate-50 border-b border-slate-200 p-4 flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={selectedIds.size === products.length && products.length > 0}
+            onChange={handleSelectAll}
+            className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+          />
+          <span className="font-bold text-slate-700 text-sm">Select All ({products.length})</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+          {sortedProducts.map(product => (
+            <div key={product.id} className={`bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all relative group ${selectedIds.has(product.id) ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/30' : 'border-slate-200'}`}>
+              <div className="absolute top-4 left-4 z-10">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(product.id)}
+                  onChange={() => handleSelect(product.id)}
+                  className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                />
+              </div>
+              <div className="aspect-square rounded-xl bg-slate-100 mb-4 overflow-hidden relative">
+                <img src={product.imageUrl || 'https://via.placeholder.com/300'} alt={product.nameCN} className="w-full h-full object-cover" />
+                <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg text-xs font-bold text-slate-600 shadow-sm">
+                  {product.department}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="font-bold text-slate-800">{product.nameCN}</h3>
+                    <p className="text-sm text-slate-500">{product.nameFR}</p>
                   </div>
-                </td>
-                <td className="p-4">
-                  <div className="font-medium text-slate-900">{p.nameCN}</div>
-                  <div className="text-slate-500 text-xs">{p.nameFR}</div>
-                </td>
-                <td className="p-4 text-slate-600">
-                  <span className="inline-block px-2 py-1 bg-slate-100 rounded-md text-xs">
-                    {p.department}
-                  </span>
-                </td>
-                <td className="p-4 text-right font-mono">${p.priceUnit.toFixed(2)}</td>
-                <td className="p-4 text-right font-mono">${p.priceCase.toFixed(2)}</td>
-                <td className="p-4 text-center">
-                  {p.taxable ?
-                    <span className="text-amber-500 font-bold text-xs">TAX</span> :
-                    <span className="text-slate-300 text-xs">NO</span>
-                  }
-                </td>
-                <td className="p-4 text-right">
-                  <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => openEdit(p)} className="p-2 hover:bg-indigo-50 text-indigo-600 rounded-lg">
-                      <Edit size={18} />
-                    </button>
-                    <button onClick={() => deleteProduct(p.id)} className="p-2 hover:bg-rose-50 text-rose-600 rounded-lg">
-                      <Trash2 size={18} />
-                    </button>
+                  <div className="text-right">
+                    <div className="font-bold text-indigo-600">${product.priceUnit.toFixed(2)}</div>
+                    {product.priceCase > 0 && <div className="text-xs text-slate-400">Case: ${product.priceCase.toFixed(2)}</div>}
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </div>
+
+                <div className="pt-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => setIsEditing(product)} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-bold text-sm transition-colors">
+                    Edit
+                  </button>
+                  <button onClick={() => handleDelete(product.id)} className="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-600 py-2 rounded-lg font-bold text-sm transition-colors">
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Add/Edit Product Modal */}
-      {isModalOpen && (
+      {isEditing && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
-              <h3 className="text-lg font-bold text-slate-800">{currentProduct.id ? 'Edit Product' : 'Add New Product'}</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+              <h3 className="text-lg font-bold text-slate-800">{products.find(p => p.id === isEditing.id) ? 'Edit Product' : 'Add New Product'}</h3>
+              <button onClick={() => setIsEditing(null)} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
             </div>
             <form onSubmit={handleSave} className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Name (Chinese)</label>
-                  <input required type="text" className="form-input" value={currentProduct.nameCN || ''} onChange={e => setCurrentProduct({ ...currentProduct, nameCN: e.target.value })} />
+                  <input required type="text" className="form-input" value={isEditing.nameCN || ''} onChange={e => setIsEditing({ ...isEditing, nameCN: e.target.value })} />
                 </div>
                 <div>
                   <label className="form-label">Name (French)</label>
-                  <input required type="text" className="form-input" value={currentProduct.nameFR || ''} onChange={e => setCurrentProduct({ ...currentProduct, nameFR: e.target.value })} />
+                  <input required type="text" className="form-input" value={isEditing.nameFR || ''} onChange={e => setIsEditing({ ...isEditing, nameFR: e.target.value })} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="form-label">Department</label>
-                  <select className="form-input" value={currentProduct.department || DEPARTMENTS[0]} onChange={e => setCurrentProduct({ ...currentProduct, department: e.target.value })}>
+                  <select className="form-input" value={isEditing.department || DEPARTMENTS[0]} onChange={e => setIsEditing({ ...isEditing, department: e.target.value })}>
                     {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="form-label">Image URL</label>
-                  <input type="text" className="form-input" value={currentProduct.imageUrl || ''} onChange={e => setCurrentProduct({ ...currentProduct, imageUrl: e.target.value })} placeholder="http://..." />
+                  <input type="text" className="form-input" value={isEditing.imageUrl || ''} onChange={e => setIsEditing({ ...isEditing, imageUrl: e.target.value })} placeholder="http://..." />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <div>
                   <label className="form-label">Unit Price ($)</label>
-                  <input required type="number" step="0.01" className="form-input bg-white" value={currentProduct.priceUnit || ''} onChange={e => setCurrentProduct({ ...currentProduct, priceUnit: parseFloat(e.target.value) })} />
+                  <input required type="number" step="0.01" className="form-input bg-white" value={isEditing.priceUnit || ''} onChange={e => setIsEditing({ ...isEditing, priceUnit: parseFloat(e.target.value) })} />
                 </div>
                 <div>
                   <label className="form-label">Case Price ($)</label>
-                  <input required type="number" step="0.01" className="form-input bg-white" value={currentProduct.priceCase || ''} onChange={e => setCurrentProduct({ ...currentProduct, priceCase: parseFloat(e.target.value) })} />
+                  <input required type="number" step="0.01" className="form-input bg-white" value={isEditing.priceCase || ''} onChange={e => setIsEditing({ ...isEditing, priceCase: parseFloat(e.target.value) })} />
                 </div>
                 <div className="flex items-center h-full pt-6">
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" checked={currentProduct.taxable || false} onChange={e => setCurrentProduct({ ...currentProduct, taxable: e.target.checked })} />
+                    <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500" checked={isEditing.taxable || false} onChange={e => setIsEditing({ ...isEditing, taxable: e.target.checked })} />
                     <span className="text-sm font-medium text-slate-700">Taxable (1)</span>
                   </label>
                 </div>
@@ -353,6 +402,7 @@ const ProductManager: React.FC = () => {
           </div>
         </div>
       )}
+
       {isBulkOpen && (
         <BulkUploadModal onClose={() => setIsBulkOpen(false)} onImport={bulkImportProducts} />
       )}

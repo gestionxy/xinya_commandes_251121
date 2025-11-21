@@ -70,9 +70,16 @@ export const parseAndImport = async (
                     const storagePath = `bulk_${Date.now()}_${row.imageFilename}`;
 
                     if (supabase) {
+                        // Detect file extension for Content-Type
+                        const fileExt = row.imageFilename.split('.').pop()?.toLowerCase() || 'jpg';
+                        const contentType = fileExt === 'png' ? 'image/png' : 'image/jpeg';
+
                         const { data: uploadData, error: uploadError } = await supabase.storage
                             .from('products')
-                            .upload(storagePath, imageBlob);
+                            .upload(storagePath, imageBlob, {
+                                contentType: contentType,
+                                upsert: true
+                            });
 
                         if (uploadError) throw uploadError;
 

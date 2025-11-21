@@ -23,6 +23,7 @@ interface StoreContextType {
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
+  bulkDeleteProducts: (ids: string[]) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   bulkImportProducts: (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => Promise<BulkImportResult>;
 }
@@ -355,12 +356,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setProducts(prev => prev.filter(p => p.id !== id));
   };
 
+  const bulkDeleteProducts = async (ids: string[]) => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .in('id', ids);
+
+      if (error) {
+        console.error('Error bulk deleting products:', error);
+        return;
+      }
+    }
+
+    setProducts(prev => prev.filter(p => !ids.includes(p.id)));
+  };
+
   return (
     <StoreContext.Provider value={{
       currentUser, users, products, orders, cart, isLoading,
       login, logout, register,
       addToCart, removeFromCart, clearCart, placeOrder,
-      updateUser, addProduct, updateProduct, deleteProduct, deleteUser,
+      updateUser, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser,
       bulkImportProducts
     }}>
       {children}

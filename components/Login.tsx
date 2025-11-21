@@ -43,9 +43,9 @@ export const Login: React.FC<{ onGuest: () => void }> = ({ onGuest }) => {
             <ShoppingBag size={32} className="text-white" />
           </div>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 to-white">
-            NovaOrder
+            Supermarché Xinya
           </h1>
-          <p className="text-slate-300 mt-2">B2B Wholesale Platform</p>
+          <p className="text-slate-300 mt-2">Wholesale Platform</p>
         </div>
 
         {/* Role Selection Tabs */}

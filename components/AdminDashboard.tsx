@@ -192,8 +192,9 @@ const ClientManager: React.FC = () => {
 
 // --- Product Manager ---
 const ProductManager: React.FC = () => {
-  const { products, addProduct, updateProduct, deleteProduct } = useStore();
+  const { products, addProduct, updateProduct, deleteProduct, bulkImportProducts } = useStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({});
 
   const handleSave = (e: React.FormEvent) => {
@@ -232,7 +233,7 @@ const ProductManager: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-800">Product Inventory</h2>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl transition-all text-sm font-medium">
+          <button onClick={() => setIsBulkOpen(true)} className="flex items-center gap-2 bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 px-4 py-2 rounded-xl transition-all text-sm font-medium">
             <Upload size={18} /> Bulk Upload (Zip/Excel)
           </button>
           <button onClick={openNew} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl shadow-lg shadow-indigo-600/30 transition-all text-sm font-medium">
@@ -352,6 +353,9 @@ const ProductManager: React.FC = () => {
           </div>
         </div>
       )}
+      {isBulkOpen && (
+        <BulkUploadModal onClose={() => setIsBulkOpen(false)} onImport={bulkImportProducts} />
+      )}
     </div>
   );
 };
@@ -441,22 +445,126 @@ const OrderHistoryManager: React.FC = () => {
   );
 };
 
+const BulkUploadModal: React.FC<{ onClose: () => void, onImport: (excel: File, zip: File | null, onProgress: (msg: string) => void) => Promise<any> }> = ({ onClose, onImport }) => {
+  const [excelFile, setExcelFile] = useState<File | null>(null);
+  const [zipFile, setZipFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+
+  const handleImport = async () => {
+    if (!excelFile) return;
+    setIsUploading(true);
+    setProgress('Starting import...');
+
+    try {
+      const res = await onImport(excelFile, zipFile, (msg) => setProgress(msg));
+      setResult(res);
+    } catch (e: any) {
+      setResult({ success: 0, failed: 1, errors: [e.message] });
+    }
+
+    setIsUploading(false);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+          <h3 className="text-lg font-bold text-slate-800">Bulk Upload Products</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={20} /></button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {!result ? (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">1. Excel File (.xlsx)</label>
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls"
+                    onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Columns: nameCN, priceUnit, department, etc.</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-slate-700 mb-2">2. Images Zip (Optional)</label>
+                  <input
+                    type="file"
+                    accept=".zip"
+                    onChange={(e) => setZipFile(e.target.files?.[0] || null)}
+                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Contains images matching 'imageFilename' in Excel.</p>
+                </div>
+              </div>
+
+              {progress && (
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <div className="text-sm text-indigo-600 font-medium animate-pulse">{progress}</div>
+                </div>
+              )}
+
+              <button
+                onClick={handleImport}
+                disabled={!excelFile || isUploading}
+                className={`w-full font-bold py-3 rounded-xl shadow-lg transition-all ${!excelFile || isUploading ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'}`}
+              >
+                {isUploading ? 'Processing...' : 'Start Import'}
+              </button>
+            </>
+          ) : (
+            <div className="text-center space-y-4">
+              <div className={`text-xl font-bold ${result.failed === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                Import Completed
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-emerald-50 p-3 rounded-lg text-emerald-700">
+                  <div className="font-bold text-2xl">{result.success}</div>
+                  <div>Success</div>
+                </div>
+                <div className="bg-rose-50 p-3 rounded-lg text-rose-700">
+                  <div className="font-bold text-2xl">{result.failed}</div>
+                  <div>Failed</div>
+                </div>
+              </div>
+
+              {result.errors.length > 0 && (
+                <div className="text-left bg-slate-50 p-3 rounded-lg max-h-40 overflow-y-auto text-xs text-rose-600 font-mono">
+                  {result.errors.map((e: string, i: number) => <div key={i}>• {e}</div>)}
+                </div>
+              )}
+
+              <button onClick={onClose} className="w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl transition-all">
+                Close
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // CSS Utility
 const styles = `
-  .form-label {
-    @apply block text-xs font-bold text-slate-500 mb-1 uppercase;
+            .form-label {
+              @apply block text-xs font-bold text-slate-500 mb-1 uppercase;
   }
-  .form-input {
-    @apply w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all;
+            .form-input {
+              @apply w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all;
   }
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-out;
+            .animate-fade-in {
+              animation: fadeIn 0.3s ease-out;
   }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+            @keyframes fadeIn {
+              from {opacity: 0; transform: translateY(10px); }
+            to {opacity: 1; transform: translateY(0); }
   }
-`;
+            `;
 const styleSheet = document.createElement("style");
 styleSheet.innerText = styles;
 document.head.appendChild(styleSheet);

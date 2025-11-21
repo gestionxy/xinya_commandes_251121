@@ -50,3 +50,11 @@ alter table public.orders enable row level security;
 create policy "Public profiles access" on public.profiles for all using (true) with check (true);
 create policy "Public products access" on public.products for all using (true) with check (true);
 create policy "Public orders access" on public.orders for all using (true) with check (true);
+
+-- Create Storage Bucket for Products (if not exists)
+insert into storage.buckets (id, name, public) 
+values ('products', 'products', true)
+on conflict (id) do nothing;
+
+-- Allow public access to storage
+create policy "Public Access" on storage.objects for all using ( bucket_id = 'products' );

@@ -56,13 +56,11 @@ export interface Order {
 }
 
 export const DEPARTMENTS = [
-  'Vegetables',
-  'Fruits',
-  'Meat',
-  'Seafood',
-  'Dry Goods',
-  'Beverages',
-  'Frozen'
+  'Épicerie / 杂货',
+  'Congelé / 冻部',
+  'Boucherie / 肉部',
+  'Légume / 菜部',
+  'poissonnerie / 鱼部'
 ];
 
 export const TAX_RATES = {

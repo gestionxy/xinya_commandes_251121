@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Product, Order, CartItem, UserRole, TAX_RATES } from '../types';
 import { INITIAL_ADMIN, INITIAL_CLIENTS, INITIAL_PRODUCTS } from './mockData';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { parseAndImport, BulkImportResult } from './bulkImport';
 
 interface StoreContextType {
   currentUser: User | null;
@@ -23,6 +24,7 @@ interface StoreContextType {
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  bulkImportProducts: (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => Promise<BulkImportResult>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -290,6 +292,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setUsers(prev => prev.filter(u => u.id !== id));
   };
 
+  const bulkImportProducts = async (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => {
+    const result = await parseAndImport(excelFile, zipFile, onProgress);
+    // Refresh products from DB if successful
+    if (result.success > 0 && isSupabaseConfigured && supabase) {
+      const { data: dbProducts } = await supabase.from('products').select('*');
+      if (dbProducts) {
+        const formattedProducts = dbProducts.map((p: any) => ({
+          ...p,
+          nameCN: p.name_cn,
+          nameFR: p.name_fr,
+          priceUnit: p.price_unit,
+          priceCase: p.price_case,
+          imageUrl: p.image_url
+        }));
+        setProducts(formattedProducts);
+      }
+    }
+    return result;
+  };
+
   const addProduct = async (product: Product) => {
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.from('products').insert({
@@ -338,7 +360,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       currentUser, users, products, orders, cart, isLoading,
       login, logout, register,
       addToCart, removeFromCart, clearCart, placeOrder,
-      updateUser, addProduct, updateProduct, deleteProduct, deleteUser
+      updateUser, addProduct, updateProduct, deleteProduct, deleteUser,
+      bulkImportProducts
     }}>
       {children}
     </StoreContext.Provider>

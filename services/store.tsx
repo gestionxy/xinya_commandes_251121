@@ -287,8 +287,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             total: total.toFixed(2)
           }
         }).then(({ data, error }) => {
-          if (error) console.error("Email sending failed:", error);
-          else console.log("Email sent:", data);
+          if (error) {
+            console.error("Email sending failed:", error);
+            alert(`Email notification failed: ${error.message || JSON.stringify(error)}`);
+          } else {
+            console.log("Email sent:", data);
+          }
         });
       }
     }

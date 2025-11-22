@@ -450,7 +450,7 @@ const ProductManager: React.FC = () => {
 // --- Order History Manager ---
 
 const OrderHistoryManager: React.FC = () => {
-  const { orders, users, products } = useStore();
+  const { orders, users, products, deleteOrder } = useStore();
   const [filterClient, setFilterClient] = useState<string>('all');
 
   const filteredOrders = orders.filter(o => filterClient === 'all' || o.userId === filterClient);
@@ -642,12 +642,24 @@ const OrderHistoryManager: React.FC = () => {
               <div className="text-right">
                 <div className="text-2xl font-bold text-indigo-600">${order.total.toFixed(2)}</div>
                 <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">{order.status}</div>
-                <button
-                  onClick={() => generatePDF(order)}
-                  className="mt-2 text-sm bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg hover:bg-indigo-100 transition-colors font-bold"
-                >
-                  Download PDF
-                </button>
+                <div className="flex gap-2 justify-end mt-2">
+                  <button
+                    onClick={() => generatePDF(order)}
+                    className="text-sm bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg hover:bg-indigo-100 transition-colors font-bold"
+                  >
+                    Download PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+                        deleteOrder(order.id);
+                      }
+                    }}
+                    className="text-sm bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100 transition-colors font-bold flex items-center gap-1"
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
               </div>
             </div>
 

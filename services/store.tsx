@@ -25,6 +25,7 @@ interface StoreContextType {
   deleteProduct: (id: string) => Promise<void>;
   bulkDeleteProducts: (ids: string[]) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
+  deleteOrder: (id: string) => Promise<void>;
   bulkImportProducts: (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => Promise<BulkImportResult>;
 }
 
@@ -276,6 +277,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         order_details: orderItems
       });
       if (error) console.error("Supabase Order Error:", error);
+      else {
+        // Send Email Notification via Edge Function
+        // We don't await this to avoid blocking the UI
+        supabase.functions.invoke('send-order-email', {
+          body: {
+            orderId: newOrderId,
+            clientName: currentUser.name,
+            total: total.toFixed(2)
+          }
+        }).then(({ data, error }) => {
+          if (error) console.error("Email sending failed:", error);
+          else console.log("Email sent:", data);
+        });
+      }
     }
 
     setOrders([newOrder, ...orders]);
@@ -300,6 +315,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await supabase.from('profiles').delete().eq('id', id);
     }
     setUsers(prev => prev.filter(u => u.id !== id));
+  };
+
+  const deleteOrder = async (id: string) => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('orders').delete().eq('id', id);
+      if (error) {
+        console.error("Error deleting order:", error);
+        alert("Failed to delete order from database");
+        return;
+      }
+    }
+    setOrders(prev => prev.filter(o => o.id !== id));
   };
 
   const bulkImportProducts = async (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => {
@@ -386,7 +413,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       currentUser, users, products, orders, cart, isLoading,
       login, logout, register,
       addToCart, removeFromCart, clearCart, placeOrder,
-      updateUser, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser,
+      updateUser, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser, deleteOrder,
       bulkImportProducts
     }}>
       {children}

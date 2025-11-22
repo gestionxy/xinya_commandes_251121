@@ -288,8 +288,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
         }).then(({ data, error }) => {
           if (error) {
-            console.error("Email sending failed:", error);
-            alert(`Email notification failed: ${error.message || JSON.stringify(error)}`);
+            console.error("Email invocation failed:", error);
+            alert(`Email system error: ${error.message}`);
+          } else if (data && !data.success) {
+            console.error("Email sending failed:", data.error);
+            alert(`Email failed: ${data.error}`);
           } else {
             console.log("Email sent:", data);
           }

@@ -18,6 +18,17 @@ export const ClientShop: React.FC<{ isGuest: boolean, onExitGuest: () => void }>
     const matchesDept = activeDept === 'All' || p.department === activeDept;
     const matchesSearch = p.nameCN.includes(searchQuery) || p.nameFR.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesDept && matchesSearch;
+  }).sort((a, b) => {
+    // 1. Sort by Department Order
+    const deptIndexA = DEPARTMENTS.indexOf(a.department);
+    const deptIndexB = DEPARTMENTS.indexOf(b.department);
+
+    if (deptIndexA !== deptIndexB) {
+      return deptIndexA - deptIndexB;
+    }
+
+    // 2. Sort by Price (Unit Price)
+    return a.priceUnit - b.priceUnit;
   });
 
   // Cart Calculations

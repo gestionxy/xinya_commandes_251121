@@ -280,7 +280,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
       if (error) {
         console.error("Supabase Order Error:", error);
-        alert("Failed to save order to database. Please check console.");
+        alert(`Failed to save order to database: ${error.message}`);
       }
       // Email sending removed as per user request
     }

@@ -16,7 +16,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="p-6 border-b border-gray-100">
           <h2 className="text-xl font-bold text-indigo-600 flex items-center gap-2 tracking-tight">
             <span className="w-3 h-3 bg-indigo-600 rounded-full shadow-indigo-500/50 shadow-lg"></span>
-            NOVA ADMIN
+            XINYA ADMIN
           </h2>
         </div>
         <nav className="p-4 space-y-2 flex-1">
@@ -201,11 +201,15 @@ const ProductManager: React.FC = () => {
   const [isEditing, setIsEditing] = useState<Partial<Product> | null>(null);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [activeDept, setActiveDept] = useState('All');
+  const [sortBy, setSortBy] = useState<'price' | 'name'>('price');
 
-  // Sorting: Department first, then Price
-  const sortedProducts = [...products].sort((a, b) => {
-    if (a.department !== b.department) {
-      return a.department.localeCompare(b.department);
+  // Filter & Sort
+  const filteredProducts = products.filter(p => activeDept === 'All' || p.department === activeDept);
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (sortBy === 'name') {
+      return a.nameCN.localeCompare(b.nameCN);
     }
     return a.priceUnit - b.priceUnit;
   });
@@ -284,7 +288,7 @@ const ProductManager: React.FC = () => {
               priceUnit: 0,
               priceCase: 0,
               imageUrl: '',
-              department: DEPARTMENTS[0],
+              department: activeDept === 'All' ? DEPARTMENTS[0] : activeDept,
               taxable: false,
               stock: 100
             })}
@@ -292,6 +296,39 @@ const ProductManager: React.FC = () => {
           >
             <Plus size={18} /> Add Product
           </button>
+        </div>
+      </div>
+
+      {/* Filters & Sort Controls */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveDept('All')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${activeDept === 'All' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+          >
+            All
+          </button>
+          {DEPARTMENTS.map(dept => (
+            <button
+              key={dept}
+              onClick={() => setActiveDept(dept)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${activeDept === dept ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+            >
+              {dept}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 min-w-[200px]">
+          <span className="text-sm font-bold text-slate-500">Sort by:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'price' | 'name')}
+            className="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 font-bold outline-none"
+          >
+            <option value="price">Price (Low to High)</option>
+            <option value="name">Name (A-Z)</option>
+          </select>
         </div>
       </div>
 

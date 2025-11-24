@@ -268,6 +268,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('orders').insert({
+        id: newOrderId, // Explicitly set the ID to match local state
         user_id: currentUser.id, // Ideally use actual UUID from auth
         user_name: currentUser.name,
         sub_total: subTotal,

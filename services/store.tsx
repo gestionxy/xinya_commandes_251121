@@ -325,7 +325,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const { error } = await supabase.from('orders').update({ status }).eq('id', id);
       if (error) {
         console.error("Error updating order status:", error);
-        alert("Failed to update order status");
+        alert(`Failed to update order status: ${error.message}`);
         return;
       }
     }

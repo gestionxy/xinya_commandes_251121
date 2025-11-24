@@ -261,14 +261,14 @@ export const ClientShop: React.FC<{ isGuest: boolean, onExitGuest: () => void }>
                       <div className="flex justify-between items-center mb-3">
                         <div className="text-xs text-slate-500">ID: {order.id}</div>
                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${order.status === 'pending' ? 'bg-indigo-100 text-indigo-700' :
-                            order.status === 'processing' ? 'bg-amber-100 text-amber-700' :
-                              order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                                'bg-slate-100 text-slate-500'
+                          order.status === 'processing' ? 'bg-amber-100 text-amber-700' :
+                            order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                              'bg-slate-100 text-slate-500'
                           }`}>
-                          {order.status === 'pending' ? '已下单' :
-                            order.status === 'processing' ? '处理中' :
-                              order.status === 'completed' ? '已完成订单' :
-                                '已取消'}
+                          {order.status === 'pending' ? '已下单 / Placé' :
+                            order.status === 'processing' ? '处理中 / En Traitement' :
+                              order.status === 'completed' ? '已完成订单 / Complété' :
+                                '已取消 / Annulé'}
                         </span>
                       </div>
                       <div className="space-y-1">

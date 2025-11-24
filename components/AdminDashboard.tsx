@@ -37,6 +37,7 @@ export const AdminDashboard: React.FC = () => {
             label="Orders"
             active={activeTab === 'orders'}
             onClick={() => setActiveTab('orders')}
+            badge={useStore().orders.filter(o => o.status === 'pending').length}
           />
         </nav>
         <div className="p-4 border-t border-gray-100">
@@ -66,14 +67,19 @@ export const AdminDashboard: React.FC = () => {
   );
 };
 
-const SidebarItem: React.FC<{ icon: any, label: string, active: boolean, onClick: () => void }> = ({ icon, label, active, onClick }) => (
+const SidebarItem: React.FC<{ icon: any, label: string, active: boolean, onClick: () => void, badge?: number }> = ({ icon, label, active, onClick, badge }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${active ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium relative ${active ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
       }`}
   >
     {icon}
     {label}
+    {badge !== undefined && badge > 0 && (
+      <span className="absolute right-4 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+        {badge}
+      </span>
+    )}
   </button>
 );
 
@@ -450,7 +456,7 @@ const ProductManager: React.FC = () => {
 // --- Order History Manager ---
 
 const OrderHistoryManager: React.FC = () => {
-  const { orders, users, products, deleteOrder } = useStore();
+  const { orders, users, products, deleteOrder, updateOrderStatus } = useStore();
   const [filterClient, setFilterClient] = useState<string>('all');
 
   const filteredOrders = orders.filter(o => filterClient === 'all' || o.userId === filterClient);
@@ -641,7 +647,34 @@ const OrderHistoryManager: React.FC = () => {
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-indigo-600">${order.total.toFixed(2)}</div>
-                <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">{order.status}</div>
+
+                {/* Status Controls */}
+                <div className="flex items-center gap-4 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${order.status === 'pending' || order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                      {(order.status === 'pending' || order.status === 'processing' || order.status === 'completed') && <Check size={12} className="text-white" />}
+                    </div>
+                    <span className={`text-xs font-bold ${order.status === 'pending' ? 'text-indigo-600' : 'text-slate-500'}`}>New Order</span>
+                  </label>
+
+                  <div className={`h-0.5 w-8 ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+
+                  <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'processing')}>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                      {(order.status === 'processing' || order.status === 'completed') && <Check size={12} className="text-white" />}
+                    </div>
+                    <span className={`text-xs font-bold ${order.status === 'processing' ? 'text-indigo-600' : 'text-slate-500'}`}>Processing</span>
+                  </label>
+
+                  <div className={`h-0.5 w-8 ${order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+
+                  <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'completed')}>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                      {order.status === 'completed' && <Check size={12} className="text-white" />}
+                    </div>
+                    <span className={`text-xs font-bold ${order.status === 'completed' ? 'text-indigo-600' : 'text-slate-500'}`}>Completed</span>
+                  </label>
+                </div>
                 <div className="flex gap-2 justify-end mt-2">
                   <button
                     onClick={() => generatePDF(order)}

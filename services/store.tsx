@@ -26,6 +26,7 @@ interface StoreContextType {
   bulkDeleteProducts: (ids: string[]) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
+  updateOrderStatus: (id: string, status: 'pending' | 'processing' | 'completed' | 'cancelled') => Promise<void>;
   bulkImportProducts: (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => Promise<BulkImportResult>;
 }
 
@@ -276,28 +277,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         status: 'pending',
         order_details: orderItems
       });
-      if (error) console.error("Supabase Order Error:", error);
-      else {
-        // Send Email Notification via Edge Function
-        // We don't await this to avoid blocking the UI
-        supabase.functions.invoke('send-order-email', {
-          body: {
-            orderId: newOrderId,
-            clientName: currentUser.name,
-            total: total.toFixed(2)
-          }
-        }).then(({ data, error }) => {
-          if (error) {
-            console.error("Email invocation failed:", error);
-            alert(`Email system error: ${error.message}`);
-          } else if (data && !data.success) {
-            console.error("Email sending failed:", data.error);
-            alert(`Email failed: ${data.error}`);
-          } else {
-            console.log("Email sent:", data);
-          }
-        });
+      if (error) {
+        console.error("Supabase Order Error:", error);
+        alert("Failed to save order to database. Please check console.");
       }
+      // Email sending removed as per user request
     }
 
     setOrders([newOrder, ...orders]);
@@ -334,6 +318,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     }
     setOrders(prev => prev.filter(o => o.id !== id));
+  };
+
+  const updateOrderStatus = async (id: string, status: 'pending' | 'processing' | 'completed' | 'cancelled') => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+      if (error) {
+        console.error("Error updating order status:", error);
+        alert("Failed to update order status");
+        return;
+      }
+    }
+    setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
   };
 
   const bulkImportProducts = async (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => {
@@ -420,11 +416,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       currentUser, users, products, orders, cart, isLoading,
       login, logout, register,
       addToCart, removeFromCart, clearCart, placeOrder,
-      updateUser, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser, deleteOrder,
+      updateUser, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser, deleteOrder, updateOrderStatus,
       bulkImportProducts
     }}>
       {children}
-    </StoreContext.Provider>
+    </StoreContext.Provider >
   );
 };
 

@@ -272,7 +272,14 @@ export const ClientShop: React.FC<{ isGuest: boolean, onExitGuest: () => void }>
                         <span className="font-bold text-indigo-600">${order.total.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between items-center mb-3">
-                        <div className="text-xs text-slate-500">ID: {order.id}</div>
+                        <div className="text-xs text-slate-500">
+                          ID: {order.id}
+                          {order.deliveryMethod && (
+                            <div className="mt-1 font-bold text-indigo-600">
+                              {order.deliveryMethod === 'pickup' ? 'Pickup / 自取' : 'Delivery / 送货'} • {order.deliveryTime?.replace('T', ' ')}
+                            </div>
+                          )}
+                        </div>
                         <span className={`text-xs font-bold px-2 py-1 rounded-full ${order.status === 'pending' ? 'bg-indigo-100 text-indigo-700' :
                           order.status === 'processing' ? 'bg-amber-100 text-amber-700' :
                             order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :

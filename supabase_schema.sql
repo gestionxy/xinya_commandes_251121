@@ -36,6 +36,8 @@ create table public.orders (
   tax_tvq float,
   total float,
   status text default 'pending',
+  delivery_method text,
+  delivery_time text,
   order_details jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now())
 );

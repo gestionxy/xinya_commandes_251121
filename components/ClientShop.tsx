@@ -414,7 +414,10 @@ interface DeliverySelectionModalProps {
 
 const DeliverySelectionModal: React.FC<DeliverySelectionModalProps> = ({ onClose, onConfirm }) => {
   const [method, setMethod] = useState<'pickup' | 'delivery'>('pickup');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
   const [selectedTime, setSelectedTime] = useState<string>('');
 
   // Generate dates (Today + next 6 days)
@@ -429,7 +432,8 @@ const DeliverySelectionModal: React.FC<DeliverySelectionModalProps> = ({ onClose
     const slots: string[] = [];
     const now = new Date();
     // Note: We use the browser's local time. For a Quebec client, this is Quebec time.
-    const isToday = new Date(selectedDate).toDateString() === now.toDateString();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const isToday = selectedDate === todayStr;
     const currentHour = now.getHours();
 
     if (method === 'pickup') {
@@ -510,11 +514,14 @@ const DeliverySelectionModal: React.FC<DeliverySelectionModalProps> = ({ onClose
               onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(''); }}
               className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none font-medium"
             >
-              {dates.map(d => (
-                <option key={d.toISOString()} value={d.toISOString().split('T')[0]}>
-                  {d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                </option>
-              ))}
+              {dates.map(d => {
+                const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                return (
+                  <option key={dateStr} value={dateStr}>
+                    {d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </option>
+                );
+              })}
             </select>
           </div>
 

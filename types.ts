@@ -56,6 +56,8 @@ export interface Order {
   taxTVQ: number;
   total: number;
   status: 'pending' | 'processing' | 'completed' | 'cancelled';
+  deliveryMethod?: string;
+  deliveryTime?: string;
 }
 
 export const DEPARTMENTS = [

@@ -548,7 +548,15 @@ const OrderHistoryManager: React.FC = () => {
     // Sanitize user name just in case
     doc.text(`Client: ${sanitizeForPdf(order.userName)}`, 14, 32);
     doc.text(`Date: ${new Date(order.date).toLocaleDateString()}`, 14, 38);
-    doc.text(`Total: $${order.total.toFixed(2)}`, 14, 44);
+
+    if (order.deliveryMethod) {
+      const method = order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery';
+      const time = order.deliveryTime ? order.deliveryTime.replace('T', ' ') : '';
+      doc.text(`Delivery: ${method} @ ${time}`, 14, 44);
+      doc.text(`Total: $${order.total.toFixed(2)}`, 14, 50);
+    } else {
+      doc.text(`Total: $${order.total.toFixed(2)}`, 14, 44);
+    }
 
     // Sort items by Department
     const sortedItems = [...order.items].sort((a, b) => {
@@ -622,7 +630,7 @@ const OrderHistoryManager: React.FC = () => {
     autoTable(doc, {
       head: [['Image', 'Product Details', 'Type', 'Qty', 'Price', 'Total']],
       body: tableBody,
-      startY: 50,
+      startY: order.deliveryMethod ? 56 : 50,
       rowPageBreak: 'avoid',
       // 5 items per page -> A4 (297mm) - margins (~40mm) = 250mm / 5 = 50mm per row
       bodyStyles: { minCellHeight: 45, valign: 'middle', fontSize: 12 },
@@ -680,7 +688,14 @@ const OrderHistoryManager: React.FC = () => {
             <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-4">
               <div>
                 <h4 className="font-bold text-lg text-slate-800">{order.userName}</h4>
-                <div className="text-sm text-slate-500">ID: {order.id} • {new Date(order.date).toLocaleDateString()} {new Date(order.date).toLocaleTimeString()}</div>
+                <div className="text-sm text-slate-500">
+                  ID: {order.id} • {new Date(order.date).toLocaleDateString()} {new Date(order.date).toLocaleTimeString()}
+                  {order.deliveryMethod && (
+                    <span className="ml-2 inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-bold uppercase">
+                      {order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery'} • {order.deliveryTime?.split('T').join(' ')}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-indigo-600">${order.total.toFixed(2)}</div>

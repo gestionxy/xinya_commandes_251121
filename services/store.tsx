@@ -17,7 +17,7 @@ interface StoreContextType {
   addToCart: (product: Product, quantity: number, isCase: boolean) => void;
   removeFromCart: (productId: string, isCase: boolean) => void;
   clearCart: () => void;
-  placeOrder: () => Promise<void>;
+  placeOrder: (deliveryMethod: string, deliveryTime: string) => Promise<void>;
   // Admin functions
   updateUser: (user: User) => Promise<void>;
   addProduct: (product: Product) => Promise<void>;
@@ -110,6 +110,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             total: o.total,
             status: o.status,
             items: o.order_details, // JSONB column
+            deliveryMethod: o.delivery_method,
+            deliveryTime: o.delivery_time,
             discountAmount: 0
           }));
           setOrders(formattedOrders);
@@ -208,7 +210,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const clearCart = () => setCart([]);
 
-  const placeOrder = async () => {
+  const placeOrder = async (deliveryMethod: string, deliveryTime: string) => {
     if (!currentUser) return;
 
     let subTotal = 0;
@@ -263,7 +265,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       taxTPS: tpsTotal,
       taxTVQ: tvqTotal,
       total: total,
-      status: 'pending'
+      status: 'pending',
+      deliveryMethod,
+      deliveryTime
     };
 
     if (isSupabaseConfigured && supabase) {
@@ -276,6 +280,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         tax_tvq: tvqTotal,
         total: total,
         status: 'pending',
+        delivery_method: deliveryMethod,
+        delivery_time: deliveryTime,
         order_details: orderItems
       });
       if (error) {

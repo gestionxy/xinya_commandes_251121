@@ -428,136 +428,148 @@ const DeliverySelectionModal: React.FC<DeliverySelectionModalProps> = ({ onClose
   const generateTimeSlots = () => {
     const slots: string[] = [];
     const now = new Date();
-    const isToday = new Date(selectedDate).toDateString() === now.toDateString();
-    const currentHour = now.getHours();
+    const DeliverySelectionModal: React.FC<DeliverySelectionModalProps> = ({ onClose, onConfirm }) => {
+      const [method, setMethod] = useState<'pickup' | 'delivery'>('pickup');
+      const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+      const [selectedTime, setSelectedTime] = useState<string>('');
 
-    if (method === 'pickup') {
-      // Pickup Rules:
-      // Same day < 10:00 -> Start 13:00
-      // Same day >= 10:00 -> Start 16:00
-      // Future -> 10:00 - 20:00
-      // Interval: 30 mins (until 20:00)
+      // Generate dates (Today + next 6 days)
+      const dates = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        return d;
+      });
 
-      let startHour = 10;
-      if (isToday) {
-        if (currentHour < 10) startHour = 13;
-        else startHour = 16;
-      }
+      // Generate time slots based on rules
+      const generateTimeSlots = () => {
+        const slots: string[] = [];
+        const now = new Date();
+        // Note: We use the browser's local time. For a Quebec client, this is Quebec time.
+        const isToday = new Date(selectedDate).toDateString() === now.toDateString();
+        const currentHour = now.getHours();
 
-      for (let h = startHour; h < 20; h++) {
-        slots.push(`${h}:00`);
-        slots.push(`${h}:30`);
-      }
-      // Add 20:00 as last slot? "Until 20:00" usually means close at 20:00, so last pickup might be 19:30 or 20:00.
-      // User said "until supermarket closes 20:00". Let's include 20:00.
-      slots.push('20:00');
+        if (method === 'pickup') {
+          // Pickup Rules:
+          // Same day < 10:00 -> Start 13:00
+          // Same day >= 10:00 -> Start 16:00
+          // Future -> 10:00 - 20:00
+          // Interval: 30 mins (until 20:00)
 
-    } else {
-      // Delivery Rules:
-      // Start 16:00, End 19:00
-      // Interval: 1 hour (16:00, 17:00, 18:00... wait, "until 19:00 end" usually means last slot is 18:00 or 19:00?)
-      // User said: "16:00 17:00 18:00 ... until 19:00 end".
-      // Let's assume 16:00, 17:00, 18:00, 19:00.
+          let startHour = 10;
+          if (isToday) {
+            if (currentHour < 10) startHour = 13;
+            else startHour = 16;
+          }
 
-      const startHour = 16;
-      const endHour = 19;
+          for (let h = startHour; h < 20; h++) {
+            slots.push(`${h}:00`);
+            slots.push(`${h}:30`);
+          }
+          // Add 20:00 as the last slot (Supermarket closes at 20:00)
+          slots.push('20:00');
 
-      for (let h = startHour; h <= endHour; h++) {
-        slots.push(`${h}:00`);
-      }
-    }
-    return slots;
-  };
+        } else {
+          // Delivery Rules:
+          // Start 16:00, End 19:00 (16:00, 17:00, 18:00, 19:00)
+          // Same day and future dates
 
-  const timeSlots = generateTimeSlots();
+          const startHour = 16;
+          const endHour = 19;
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-600 text-white">
-          <h3 className="text-lg font-bold">Select Delivery Method</h3>
-          <button onClick={onClose} className="text-white/80 hover:text-white"><X size={20} /></button>
-        </div>
+          for (let h = startHour; h <= endHour; h++) {
+            slots.push(`${h}:00`);
+          }
+        }
+        return slots;
+      };
 
-        <div className="p-6 space-y-6">
-          {/* Method Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => { setMethod('pickup'); setSelectedTime(''); }}
-              className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'pickup' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-200 text-slate-600'
-                }`}
-            >
-              <div className="p-2 bg-white rounded-full shadow-sm">
-                <Package size={24} className={method === 'pickup' ? 'text-indigo-600' : 'text-slate-400'} />
+      const timeSlots = generateTimeSlots();
+
+      return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-indigo-600 text-white">
+              <h3 className="text-lg font-bold">Select Delivery Method / 选择配送方式</h3>
+              <button onClick={onClose} className="text-white/80 hover:text-white"><X size={20} /></button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Method Selection */}
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={() => { setMethod('pickup'); setSelectedTime(''); }}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'pickup' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-200 text-slate-600'
+                    }`}
+                >
+                  <div className="p-2 bg-white rounded-full shadow-sm">
+                    <Package size={24} className={method === 'pickup' ? 'text-indigo-600' : 'text-slate-400'} />
+                  </div>
+                  <span className="font-bold">Pickup / 自取</span>
+                </button>
+                <button
+                  onClick={() => { setMethod('delivery'); setSelectedTime(''); }}
+                  className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'delivery' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-200 text-slate-600'
+                    }`}
+                >
+                  <div className="p-2 bg-white rounded-full shadow-sm">
+                    <Truck size={24} className={method === 'delivery' ? 'text-indigo-600' : 'text-slate-400'} />
+                  </div>
+                  <span className="font-bold">Delivery / 送货</span>
+                </button>
               </div>
-              <span className="font-bold">Pickup / 自取</span>
-            </button>
-            <button
-              onClick={() => { setMethod('delivery'); setSelectedTime(''); }}
-              className={`p-4 rounded-xl border-2 flex flex-col items-center gap-2 transition-all ${method === 'delivery' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:border-indigo-200 text-slate-600'
-                }`}
-            >
-              <div className="p-2 bg-white rounded-full shadow-sm">
-                <Truck size={24} className={method === 'delivery' ? 'text-indigo-600' : 'text-slate-400'} />
+
+              {/* Date Selection */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Date / 日期</label>
+                <select
+                  value={selectedDate}
+                  onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(''); }}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none font-medium"
+                >
+                  {dates.map(d => (
+                    <option key={d.toISOString()} value={d.toISOString().split('T')[0]}>
+                      {d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <span className="font-bold">Delivery / 送货</span>
-            </button>
-          </div>
 
-          {/* Date Selection */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Date</label>
-            <select
-              value={selectedDate}
-              onChange={(e) => { setSelectedDate(e.target.value); setSelectedTime(''); }}
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:border-indigo-500 outline-none font-medium"
-            >
-              {dates.map(d => (
-                <option key={d.toISOString()} value={d.toISOString().split('T')[0]}>
-                  {d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Time Selection */}
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-2">Time Slot</label>
-            <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
-              {timeSlots.length > 0 ? (
-                timeSlots.map(time => (
-                  <button
-                    key={time}
-                    onClick={() => setSelectedTime(time)}
-                    className={`py-2 px-1 rounded-lg text-sm font-bold transition-colors ${selectedTime === time ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                  >
-                    {time}
-                  </button>
-                ))
-              ) : (
-                <div className="col-span-3 text-center text-slate-400 text-sm py-4">
-                  No available slots for this date.
+              {/* Time Selection */}
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">Time Slot / 时间段</label>
+                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto pr-1">
+                  {timeSlots.length > 0 ? (
+                    timeSlots.map(time => (
+                      <button
+                        key={time}
+                        onClick={() => setSelectedTime(time)}
+                        className={`py-2 px-1 rounded-lg text-sm font-bold transition-colors ${selectedTime === time ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          }`}
+                      >
+                        {time}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="col-span-3 text-center text-slate-400 text-sm py-4">
+                      No available slots / 暂无可选时间
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
+
+              <button
+                disabled={!selectedTime}
+                onClick={() => onConfirm(method, `${selectedDate} ${selectedTime}`)}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-600/20 transition-all mt-4"
+              >
+                Confirm Order / 确认下单
+              </button>
             </div>
           </div>
-
-          <button
-            disabled={!selectedTime}
-            onClick={() => onConfirm(method, `${selectedDate} ${selectedTime}`)}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl shadow-lg shadow-indigo-600/20 transition-all mt-4"
-          >
-            Confirm Order
-          </button>
         </div>
-      </div>
-    </div>
-  );
-};
-
-// Styles
-const styles = `
+      );
+    };
+    const styles = `
   .animate-slide-in {
     animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -580,6 +592,6 @@ const styles = `
     to { opacity: 1; transform: scale(1); }
   }
 `;
-const styleSheet = document.createElement("style");
-styleSheet.innerText = styles;
-document.head.appendChild(styleSheet);
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = styles;
+    document.head.appendChild(styleSheet);

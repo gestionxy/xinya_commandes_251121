@@ -529,6 +529,190 @@ const ProductManager: React.FC = () => {
   );
 };
 
+// --- Edit Order Modal ---
+const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () => void, onSave: (id: string, items: any[], totals: any) => void }> = ({ order, products, onClose, onSave }) => {
+  const [items, setItems] = useState([...order.items]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [search, setSearch] = useState('');
+
+  // Calculate totals
+  const calculateTotals = (currentItems: any[]) => {
+    let subTotal = 0;
+    let tpsTotal = 0;
+    let tvqTotal = 0;
+
+    currentItems.forEach(item => {
+      subTotal += item.totalLine;
+      if (item.taxable) {
+        tpsTotal += item.totalLine * 0.05;
+        tvqTotal += item.totalLine * 0.09975;
+      }
+    });
+
+    return {
+      subTotal,
+      taxTPS: tpsTotal,
+      taxTVQ: tvqTotal,
+      total: subTotal + tpsTotal + tvqTotal
+    };
+  };
+
+  const totals = calculateTotals(items);
+
+  const handleUpdateItem = (index: number, field: string, value: number) => {
+    const newItems = [...items];
+    const item = { ...newItems[index] };
+
+    if (field === 'quantity') {
+      item.quantity = value;
+      item.totalLine = item.unitPrice * value;
+    } else if (field === 'unitPrice') {
+      item.unitPrice = value;
+      item.totalLine = value * item.quantity;
+    }
+
+    newItems[index] = item;
+    setItems(newItems);
+  };
+
+  const handleDeleteItem = (index: number) => {
+    if (window.confirm('Remove this item?')) {
+      const newItems = items.filter((_, i) => i !== index);
+      setItems(newItems);
+    }
+  };
+
+  const handleAddItem = (product: Product) => {
+    const newItem = {
+      productNameCN: product.nameCN,
+      productNameFR: product.nameFR,
+      quantity: 1,
+      unitPrice: product.priceUnit, // Default to unit price
+      isCase: false,
+      totalLine: product.priceUnit,
+      imageUrl: product.imageUrl,
+      department: product.department,
+      taxable: product.taxable,
+      addedByAdmin: true
+    };
+    setItems([...items, newItem]);
+    setIsAdding(false);
+    setSearch('');
+  };
+
+  const filteredProducts = products.filter(p =>
+    p.nameCN.toLowerCase().includes(search.toLowerCase()) ||
+    p.nameFR.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h3 className="text-lg font-bold text-slate-800">Edit Order: {order.id}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="space-y-4">
+            {items.map((item, idx) => (
+              <div key={idx} className={`flex items-center gap-4 p-4 rounded-xl border ${item.addedByAdmin ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+                <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
+                  <img src={item.imageUrl || 'placeholder'} alt="" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-slate-800 truncate">{item.productNameCN}</div>
+                  <div className="text-xs text-slate-500 truncate">{item.productNameFR}</div>
+                  {item.addedByAdmin && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1 rounded">Admin Added</span>}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase">Qty</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => handleUpdateItem(idx, 'quantity', parseFloat(e.target.value))}
+                      className="w-20 p-2 border border-slate-200 rounded-lg font-bold text-center"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase">Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => handleUpdateItem(idx, 'unitPrice', parseFloat(e.target.value))}
+                      className="w-24 p-2 border border-slate-200 rounded-lg font-bold text-right"
+                    />
+                  </div>
+                  <div className="text-right w-24">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase">Total</div>
+                    <div className="font-bold text-slate-700">${item.totalLine.toFixed(2)}</div>
+                  </div>
+                  <button onClick={() => handleDeleteItem(idx)} className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {isAdding ? (
+            <div className="border-2 border-dashed border-indigo-200 rounded-xl p-4 bg-indigo-50/50">
+              <div className="flex justify-between items-center mb-4">
+                <input
+                  autoFocus
+                  type="text"
+                  placeholder="Search product to add..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="flex-1 p-3 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+                <button onClick={() => setIsAdding(false)} className="ml-4 text-slate-500 hover:text-slate-700">Cancel</button>
+              </div>
+              <div className="max-h-60 overflow-y-auto grid grid-cols-1 gap-2">
+                {filteredProducts.slice(0, 10).map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => handleAddItem(p)}
+                    className="flex items-center gap-3 p-2 hover:bg-white rounded-lg transition-colors text-left group"
+                  >
+                    <div className="w-10 h-10 bg-slate-200 rounded overflow-hidden"><img src={p.imageUrl} className="w-full h-full object-cover" /></div>
+                    <div>
+                      <div className="font-bold text-slate-700 group-hover:text-indigo-600">{p.nameCN}</div>
+                      <div className="text-xs text-slate-500">${p.priceUnit} / ${p.priceCase}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setIsAdding(true)} className="w-full py-4 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 font-bold hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2">
+              <Plus size={20} /> Add Item
+            </button>
+          )}
+
+          <div className="bg-slate-50 p-6 rounded-xl space-y-2">
+            <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>${totals.subTotal.toFixed(2)}</span></div>
+            <div className="flex justify-between text-slate-600"><span>TPS</span><span>${totals.taxTPS.toFixed(2)}</span></div>
+            <div className="flex justify-between text-slate-600"><span>TVQ</span><span>${totals.taxTVQ.toFixed(2)}</span></div>
+            <div className="flex justify-between text-xl font-bold text-indigo-600 pt-2 border-t border-slate-200"><span>Total</span><span>${totals.total.toFixed(2)}</span></div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-4">
+          <button onClick={onClose} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
+          <button onClick={() => onSave(order.id, items, totals)} className="px-6 py-3 rounded-xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-colors">
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Order History Manager ---
 
 const OrderHistoryManager: React.FC = () => {

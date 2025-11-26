@@ -582,14 +582,15 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () 
     }
   };
 
-  const handleAddItem = (product: Product) => {
+  const handleAddItem = (product: Product, isCase: boolean) => {
+    const price = isCase ? product.priceCase : product.priceUnit;
     const newItem = {
       productNameCN: product.nameCN,
       productNameFR: product.nameFR,
       quantity: 1,
-      unitPrice: product.priceUnit, // Default to unit price
-      isCase: false,
-      totalLine: product.priceUnit,
+      unitPrice: price,
+      isCase: isCase,
+      totalLine: price,
       imageUrl: product.imageUrl,
       department: product.department,
       taxable: product.taxable,
@@ -674,17 +675,30 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () 
               </div>
               <div className="max-h-60 overflow-y-auto grid grid-cols-1 gap-2">
                 {filteredProducts.slice(0, 10).map(p => (
-                  <button
+                  <div
                     key={p.id}
-                    onClick={() => handleAddItem(p)}
-                    className="flex items-center gap-3 p-2 hover:bg-white rounded-lg transition-colors text-left group"
+                    className="flex items-center gap-3 p-2 hover:bg-white rounded-lg transition-colors group"
                   >
-                    <div className="w-10 h-10 bg-slate-200 rounded overflow-hidden"><img src={p.imageUrl} className="w-full h-full object-cover" /></div>
-                    <div>
-                      <div className="font-bold text-slate-700 group-hover:text-indigo-600">{p.nameCN}</div>
-                      <div className="text-xs text-slate-500">${p.priceUnit} / ${p.priceCase}</div>
+                    <div className="w-10 h-10 bg-slate-200 rounded overflow-hidden flex-shrink-0"><img src={p.imageUrl} className="w-full h-full object-cover" /></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-slate-700">{p.nameCN}</div>
+                      <div className="text-xs text-slate-500 truncate">{p.nameFR}</div>
                     </div>
-                  </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleAddItem(p, false)}
+                        className="px-3 py-1.5 text-xs font-bold bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors"
+                      >
+                        Unit ${p.priceUnit.toFixed(2)}
+                      </button>
+                      <button
+                        onClick={() => handleAddItem(p, true)}
+                        className="px-3 py-1.5 text-xs font-bold bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                      >
+                        Case ${p.priceCase.toFixed(2)}
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

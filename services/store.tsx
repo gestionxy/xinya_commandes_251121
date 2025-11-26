@@ -141,10 +141,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
 
         setIsLoading(false);
-      };
-      fetchData().catch(err => console.error("Error in initial fetch:", err));
-    }
-  }, []);
+      } catch (err) {
+        console.error("Error in initial fetch:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isSupabaseConfigured]);
 
   // Persistence Effects
   useEffect(() => {

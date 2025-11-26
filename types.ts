@@ -12,6 +12,7 @@ export interface User {
   role: UserRole;
   phone?: string;
   address?: string;
+  deliveryAddress?: string;
   paymentMethod?: string; // e.g., "Net 30", "COD"
   discountRate: number; // Default 1.0
 }

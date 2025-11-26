@@ -105,6 +105,7 @@ const ClientManager: React.FC = () => {
               <th className="p-4 font-semibold">Company</th>
               <th className="p-4 font-semibold">Contact Info</th>
               <th className="p-4 font-semibold">Address</th>
+              <th className="p-4 font-semibold">Livraison</th>
               <th className="p-4 font-semibold">Discount Rate</th>
               <th className="p-4 font-semibold">Payment</th>
               <th className="p-4 font-semibold">Actions</th>
@@ -121,6 +122,9 @@ const ClientManager: React.FC = () => {
                   </div>
                 </td>
                 <td className="p-4 text-slate-600 max-w-xs truncate">{client.address || '-'}</td>
+                <td className="p-4 text-slate-600 max-w-xs break-words">
+                  {client.deliveryAddress || <span className="text-slate-300 italic">Same as address</span>}
+                </td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded-lg text-xs font-bold ${client.discountRate < 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                     {client.discountRate} ({((1 - client.discountRate) * 100).toFixed(0)}% Off)
@@ -174,6 +178,16 @@ const ClientManager: React.FC = () => {
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Address</label>
                 <input required type="text" value={editingUser.address || ''} onChange={e => setEditingUser({ ...editingUser, address: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Delivery Address (Livraison)</label>
+                <textarea
+                  rows={2}
+                  value={editingUser.deliveryAddress || ''}
+                  onChange={e => setEditingUser({ ...editingUser, deliveryAddress: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none"
+                  placeholder="Leave empty if same as billing address"
+                />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Payment Method</label>
@@ -554,12 +568,24 @@ const OrderHistoryManager: React.FC = () => {
     });
   };
 
-  // Helper to sanitize text for PDF (remove non-Latin characters to prevent garbled text)
+  // Helper to sanitize text for PDF
   const sanitizeForPdf = (str: string) => {
-    // Remove characters that are not in the Latin-1 supplement range (roughly)
-    // This is a basic fix. Ideally, we'd embed a font, but that's heavy for this demo.
-    // We will keep ASCII and Latin-1 (French accents).
-    return str.replace(/[^\x00-\xFF]/g, '').trim();
+    // 1. Replace common full-width characters with ASCII equivalents
+    let s = str
+      .replace(/（/g, '(')
+      .replace(/）/g, ')')
+      .replace(/，/g, ',')
+      .replace(/：/g, ':')
+      .replace(/；/g, ';')
+      .replace(/“/g, '"')
+      .replace(/”/g, '"')
+      .replace(/‘/g, "'")
+      .replace(/’/g, "'");
+
+    // 2. Remove remaining non-Latin-1 characters to prevent garbage
+    // Note: This means actual Chinese characters will be removed, but punctuation will be fixed.
+    // If we want to keep Chinese, we MUST embed a font. For now, we clean it up.
+    return s.replace(/[^\x00-\xFF]/g, '').trim();
   };
 
   const generatePDF = async (order: Order) => {
@@ -639,8 +665,9 @@ const OrderHistoryManager: React.FC = () => {
     }));
 
     const tableBody = itemsWithImages.map((item) => {
-      // Use CN name for PDF as requested
-      const nameDisplay = item.productNameCN || item.productNameFR;
+      // Use CN name for PDF as requested, but sanitize it to avoid garbage
+      const rawName = item.productNameCN || item.productNameFR;
+      const nameDisplay = sanitizeForPdf(rawName);
 
       return [
         '', // Image placeholder

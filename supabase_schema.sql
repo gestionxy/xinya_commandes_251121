@@ -7,6 +7,7 @@ create table public.profiles (
   role text default 'client',
   phone text,
   address text,
+  delivery_address text,
   payment_method text,
   discount_rate float default 1.0,
   created_at timestamp with time zone default timezone('utc'::text, now())

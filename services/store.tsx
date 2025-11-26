@@ -87,6 +87,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             role: p.role,
             phone: p.phone,
             address: p.address,
+            deliveryAddress: p.delivery_address,
             paymentMethod: p.payment_method,
             discountRate: p.discount_rate || 1,
             password: p.password || 'encrypted' // Now fetching actual password for demo login check
@@ -301,6 +302,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await supabase.from('profiles').update({
         phone: updatedUser.phone,
         address: updatedUser.address,
+        delivery_address: updatedUser.deliveryAddress,
         discount_rate: updatedUser.discountRate,
         payment_method: updatedUser.paymentMethod
       }).eq('id', updatedUser.id);

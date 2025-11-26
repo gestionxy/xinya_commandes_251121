@@ -1557,6 +1557,7 @@ const OrderHistoryManager: React.FC = () => {
 
       autoTable(doc, {
         startY: 60,
+        margin: { bottom: 60 }, // Reserve space for footer summary
         head: [['Image', 'Product Details', 'Qty', 'Price', 'Total']],
         body: tableRows,
         didDrawCell: (data) => {
@@ -1571,6 +1572,59 @@ const OrderHistoryManager: React.FC = () => {
               }
             }
           }
+        },
+        didDrawPage: (data) => {
+          // Footer Note
+          const pageHeight = doc.internal.pageSize.height;
+          const pageWidth = doc.internal.pageSize.width;
+
+          doc.setFontSize(8);
+          doc.setTextColor(150);
+          doc.text("* Prix Spécial / Special Price: Non soumis au rabais / Excluded from discount.", 20, pageHeight - 10);
+
+          // Draw Summary on EVERY page
+          const summaryY = pageHeight - 55;
+          const rightMargin = 20;
+          const valueX = pageWidth - rightMargin;
+          const labelX = pageWidth - rightMargin - 40;
+
+          doc.setFontSize(10);
+          doc.setTextColor(0);
+
+          // Calculate totals (these are order totals, not page totals)
+          // We use the order object directly
+          const discountAmount = order.originalSubTotal - order.subTotal;
+
+          // Helper to right align text
+          const drawLine = (label: string, value: string, y: number, isBold: boolean = false, color: string = '#000000') => {
+            doc.setFont(undefined, isBold ? 'bold' : 'normal');
+            doc.setTextColor(color);
+            doc.text(label, labelX, y, { align: 'right' });
+            doc.text(value, valueX, y, { align: 'right' });
+          };
+
+          let currentY = summaryY;
+          const lineHeight = 5;
+
+          drawLine("Prix Original:", `$${order.originalSubTotal.toFixed(2)}`, currentY, true);
+          currentY += lineHeight;
+
+          if (discountAmount > 0.01) {
+            drawLine("Rabais:", `-$${discountAmount.toFixed(2)}`, currentY, true, '#dc2626'); // Red color
+            currentY += lineHeight;
+          }
+
+          drawLine("Sous-total:", `$${order.subTotal.toFixed(2)}`, currentY, true);
+          currentY += lineHeight;
+
+          drawLine("TPS (5%):", `$${order.taxTPS.toFixed(2)}`, currentY, true);
+          currentY += lineHeight;
+
+          drawLine("TVQ (9.975%):", `$${order.taxTVQ.toFixed(2)}`, currentY, true);
+          currentY += lineHeight + 2;
+
+          doc.setFontSize(12);
+          drawLine("Total:", `$${order.total.toFixed(2)}`, currentY, true, '#4f46e5'); // Indigo color
         },
         styles: { valign: 'middle' },
         headStyles: { minCellHeight: 10 }, // Standard height for header

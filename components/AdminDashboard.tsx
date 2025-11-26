@@ -1432,18 +1432,24 @@ const OrderHistoryManager: React.FC = () => {
       return deptA.localeCompare(deptB);
     });
 
-    // Pre-load images
+    // Pre-load images and details
     const itemsWithImages = await Promise.all(sortedItems.map(async (item) => {
-      // 1. Try item.imageUrl
+      // 1. Try item.imageUrl, department, taxable
       // 2. Fallback to finding product in store
       let imageUrl = item.imageUrl;
+      let department = item.department;
+      let taxable = item.taxable;
       let productExists = true;
-      if (!imageUrl) {
+
+      if (!imageUrl || !department || taxable === undefined) {
         const p = products.find(prod => prod.nameCN === item.productNameCN); // Try matching by name if ID not available in item
         if (p) {
-          imageUrl = p.imageUrl;
+          if (!imageUrl) imageUrl = p.imageUrl;
+          if (!department) department = p.department;
+          if (taxable === undefined) taxable = p.taxable;
         } else {
-          productExists = false;
+          // Product not found in current inventory
+          if (!imageUrl) productExists = false;
         }
       }
 
@@ -1455,24 +1461,31 @@ const OrderHistoryManager: React.FC = () => {
       return {
         ...item,
         imageData,
+        department,
+        taxable,
         productExists
       };
     }));
 
     const tableRows = itemsWithImages.map(item => {
       const name = sanitizeForPdf(item.productNameCN);
+      const dept = item.department ? `Dept: ${sanitizeForPdf(item.department)}` : '';
+      const taxInfo = `Tax: ${item.taxable ? 'Yes' : 'No'}`;
+      const status = !item.productExists ? ' (Deleted)' : '';
+
+      // Combine details into one cell with newlines
+      const details = `${name}${status}\n${dept}\n${taxInfo}`;
+
       const qty = `${item.quantity} ${item.isCase ? '(Case)' : '(Unit)'} `;
       const price = `$${item.unitPrice.toFixed(2)} `;
       const total = `$${item.totalLine.toFixed(2)} `;
-      const tax = item.taxable ? 'Tax' : '';
-      const status = !item.productExists ? '(Deleted)' : '';
 
-      return ['', name + status, qty, price, tax, total];
+      return ['', details, qty, price, total];
     });
 
     autoTable(doc, {
       startY: 60,
-      head: [['Image', 'Item', 'Qty', 'Price', 'Tax', 'Total']],
+      head: [['Image', 'Product Details', 'Qty', 'Price', 'Total']],
       body: tableRows,
       didDrawCell: (data) => {
         if (data.section === 'body' && data.column.index === 0) {
@@ -1490,7 +1503,7 @@ const OrderHistoryManager: React.FC = () => {
       styles: { minCellHeight: 40, valign: 'middle' },
       columnStyles: {
         0: { cellWidth: 40 }, // Dedicated Image column
-        1: { cellWidth: 50 }  // Item name column
+        1: { cellWidth: 80 }  // Product Details column (wider)
       }
     });
 

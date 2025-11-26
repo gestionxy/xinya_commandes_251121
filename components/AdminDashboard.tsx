@@ -1446,71 +1446,155 @@ const OrderHistoryManager: React.FC = () => {
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-indigo-600">${order.total.toFixed(2)}</div>
-                <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">Total Amount</div>
+
+                {/* Status Controls */}
+                <div className="flex items-center gap-4 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                  <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'pending')}>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${order.status === 'pending' || order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                      {(order.status === 'pending' || order.status === 'processing' || order.status === 'completed') && <Check size={12} className="text-white" />}
+                    </div>
+                    <span className={`text-xs font-bold ${order.status === 'pending' ? 'text-indigo-600' : 'text-slate-500'}`}>New Order</span>
+                  </label>
+
+                  <div className={`h-0.5 w-8 ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+
+                  <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'processing')}>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                      {(order.status === 'processing' || order.status === 'completed') && <Check size={12} className="text-white" />}
+                    </div>
+                    <span className={`text-xs font-bold ${order.status === 'processing' ? 'text-indigo-600' : 'text-slate-500'}`}>Processing</span>
+                  </label>
+
+                  <div className={`h-0.5 w-8 ${order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+
+                  <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'completed')}>
+                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                      {order.status === 'completed' && <Check size={12} className="text-white" />}
+                    </div>
+                    <span className={`text-xs font-bold ${order.status === 'completed' ? 'text-indigo-600' : 'text-slate-500'}`}>Completed</span>
+                  </label>
+                </div>
+
+                <div className="flex gap-2 justify-end mt-2">
+                  <button
+                    onClick={() => generatePDF(order)}
+                    className="text-sm bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg hover:bg-indigo-100 transition-colors font-bold"
+                  >
+                    Download PDF
+                  </button>
+                  <button
+                    onClick={() => setInvoicingOrder(order)}
+                    className="text-sm bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg hover:bg-emerald-100 transition-colors font-bold flex items-center gap-1"
+                  >
+                    <FileText size={14} /> Invoice
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+                        deleteOrder(order.id);
+                      }
+                    }}
+                    className="text-sm bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100 transition-colors font-bold flex items-center gap-1"
+                  >
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Order Details Preview */}
-            <div className="bg-slate-50 rounded-xl p-4 mb-6">
-              <div className="space-y-2">
-                {order.items.slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-slate-600">
-                      <span className="font-bold text-slate-800">{item.quantity}x</span> {item.productNameCN}
-                      {item.isCase && <span className="text-xs text-indigo-600 ml-1 font-bold">CASE</span>}
-                    </span>
-                    <span className="text-slate-500">${item.totalLine.toFixed(2)}</span>
-                  </div>
-                ))}
-                {order.items.length > 3 && (
-                  <div className="text-xs text-slate-400 font-medium pt-2 border-t border-slate-200">
-                    + {order.items.length - 3} more items
-                  </div>
-                )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-slate-400 bg-slate-50 rounded-lg">
+                  <tr>
+                    <th className="p-2 font-medium pl-4">Image</th>
+                    <th className="p-2 font-medium">Product Details</th>
+                    <th className="p-2 font-medium">Department</th>
+                    <th className="p-2 font-medium text-center">Tax</th>
+                    <th className="p-2 font-medium text-right">Qty</th>
+                    <th className="p-2 font-medium text-right">Price</th>
+                    <th className="p-2 font-medium text-right pr-4">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...order.items]
+                    .sort((a, b) => (a.department || '').localeCompare(b.department || ''))
+                    .map((item, idx) => {
+                      // Fallback logic for UI display
+                      let displayImage = item.imageUrl;
+                      let displayDept = item.department;
+                      let displayTax = item.taxable;
+                      let productExists = true;
+
+                      if (!displayImage || !displayDept || displayTax === undefined) {
+                        const product = products.find(p => p.nameCN === item.productNameCN);
+                        if (product) {
+                          if (!displayImage) displayImage = product.imageUrl;
+                          if (!displayDept) displayDept = product.department;
+                          if (displayTax === undefined) displayTax = product.taxable;
+                        } else {
+                          // Product not found in current inventory
+                          if (!displayImage) productExists = false;
+                        }
+                      }
+
+                      return (
+                        <tr key={idx} className="border-b border-slate-50 last:border-0">
+                          <td className="p-2 pl-4">
+                            <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center text-center">
+                              {productExists && displayImage ? (
+                                <img src={displayImage} alt="Product" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-[10px] text-slate-400 leading-tight p-1">
+                                  图片已无或商品已失效
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-2">
+                            <div className="text-slate-800 font-medium">{item.productNameCN}</div>
+                            <div className="text-xs text-slate-500">{item.productNameFR}</div>
+                            {item.addedByAdmin && (
+                              <span className="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded mt-1">
+                                Admin Added / 后加
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-2 text-slate-600 text-xs">
+                            {displayDept}
+                          </td>
+                          <td className="p-2 text-center">
+                            {displayTax ? (
+                              <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-bold">Tax</span>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
+                          </td>
+                          <td className="p-2 text-right font-mono">
+                            {item.quantity} <span className="text-xs text-slate-400">{item.isCase ? 'cs' : 'un'}</span>
+                          </td>
+                          <td className="p-2 text-right font-mono text-slate-600">
+                            ${item.unitPrice.toFixed(2)}
+                          </td>
+                          <td className="p-2 text-right font-mono font-bold text-slate-700 pr-4">
+                            ${item.totalLine.toFixed(2)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end gap-4 text-sm">
+              <div className="text-right space-y-1">
+                <div className="text-slate-500">Subtotal: <span className="font-mono font-bold text-slate-700">${order.subTotal.toFixed(2)}</span></div>
+                <div className="text-slate-500">TPS (5%): <span className="font-mono font-bold text-slate-700">${order.taxTPS.toFixed(2)}</span></div>
+                <div className="text-slate-500">TVQ (9.975%): <span className="font-mono font-bold text-slate-700">${order.taxTVQ.toFixed(2)}</span></div>
+                <div className="text-lg font-bold text-indigo-600 mt-2">Total: ${order.total.toFixed(2)}</div>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <select
-                className="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 font-medium text-slate-600 focus:outline-none focus:border-indigo-500"
-                value={order.status}
-                onChange={(e) => updateOrderStatus(order.id, e.target.value as any)}
-              >
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-
-              <button
-                onClick={() => generatePDF(order)}
-                className="text-sm bg-slate-100 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-200 transition-colors font-bold flex items-center gap-2"
-              >
-                <FileText size={16} />
-                PDF
-              </button>
-
-              <button
-                onClick={() => setInvoicingOrder(order)}
-                className="text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-bold shadow-md shadow-emerald-200 flex items-center gap-2"
-              >
-                <FileText size={16} />
-                Invoice
-              </button>
-
-              <div className="flex-1"></div>
-
-              <button
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to delete this order?')) {
-                    deleteOrder(order.id);
-                  }
-                }}
-                className="text-sm text-rose-600 px-4 py-2 rounded-lg hover:bg-rose-50 transition-colors font-bold"
-              >
-                Delete
-              </button>
-
+            <div className="mt-4 flex justify-end">
               <button
                 onClick={() => setEditingOrder(order)}
                 className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-bold shadow-md shadow-indigo-200"

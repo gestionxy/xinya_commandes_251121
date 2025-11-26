@@ -21,16 +21,16 @@ export const AdminDashboard: React.FC = () => {
         </div>
         <nav className="p-4 space-y-2 flex-1">
           <SidebarItem
-            icon={<Users size={20} />}
-            label="Clients"
-            active={activeTab === 'clients'}
-            onClick={() => setActiveTab('clients')}
-          />
-          <SidebarItem
             icon={<FileText size={20} />}
             label="Company Info"
             active={activeTab === 'company'}
             onClick={() => setActiveTab('company')}
+          />
+          <SidebarItem
+            icon={<Users size={20} />}
+            label="Clients"
+            active={activeTab === 'clients'}
+            onClick={() => setActiveTab('clients')}
           />
           <SidebarItem
             icon={<Package size={20} />}
@@ -153,11 +153,11 @@ const CompanyInfoManager: React.FC = () => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="form-label">Company Name / 公司名称</label>
+          <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Company Name / 公司名称</label>
           <input
             type="text"
             required
-            className="form-input"
+            className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
             value={formData.name}
             onChange={e => setFormData({ ...formData, name: e.target.value })}
           />
@@ -165,19 +165,19 @@ const CompanyInfoManager: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="form-label">Address / 地址</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Address / 地址</label>
             <input
               type="text"
-              className="form-input"
+              className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
               value={formData.address}
               onChange={e => setFormData({ ...formData, address: e.target.value })}
             />
           </div>
           <div>
-            <label className="form-label">Postal Code / 邮编</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Postal Code / 邮编</label>
             <input
               type="text"
-              className="form-input"
+              className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
               value={formData.postalCode}
               onChange={e => setFormData({ ...formData, postalCode: e.target.value })}
             />
@@ -186,19 +186,19 @@ const CompanyInfoManager: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="form-label">Email / 电子邮箱</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Email / 电子邮箱</label>
             <input
               type="email"
-              className="form-input"
+              className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
               value={formData.email}
               onChange={e => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
           <div>
-            <label className="form-label">Phone / 电话 (TELE)</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">Phone / 电话 (TELE)</label>
             <input
               type="text"
-              className="form-input"
+              className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
               value={formData.phone}
               onChange={e => setFormData({ ...formData, phone: e.target.value })}
             />
@@ -207,19 +207,19 @@ const CompanyInfoManager: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="form-label">GST Number</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">GST Number</label>
             <input
               type="text"
-              className="form-input"
+              className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
               value={formData.gst}
               onChange={e => setFormData({ ...formData, gst: e.target.value })}
             />
           </div>
           <div>
-            <label className="form-label">QST Number</label>
+            <label className="block text-xs font-bold text-slate-500 mb-1 uppercase">QST Number</label>
             <input
               type="text"
-              className="form-input"
+              className="w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
               value={formData.qst}
               onChange={e => setFormData({ ...formData, qst: e.target.value })}
             />

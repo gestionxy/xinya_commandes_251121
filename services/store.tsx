@@ -27,7 +27,7 @@ interface StoreContextType {
   deleteUser: (id: string) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
   updateOrderStatus: (id: string, status: 'pending' | 'processing' | 'completed' | 'cancelled') => Promise<void>;
-  updateOrderDetails: (id: string, newItems: any[], newTotals: any) => Promise<void>;
+  updateOrderDetails: (id: string, newItems: any[], newTotals: any, discountRate: number) => Promise<void>;
   bulkImportProducts: (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => Promise<BulkImportResult>;
 }
 
@@ -114,6 +114,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             items: o.order_details, // JSONB column
             deliveryMethod: o.delivery_method,
             deliveryTime: o.delivery_time,
+            discountRate: o.discount_rate || 1.0,
             discountAmount: 0
           }));
           setOrders(formattedOrders);
@@ -342,14 +343,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
   };
 
-  const updateOrderDetails = async (id: string, newItems: any[], newTotals: any) => {
+  const updateOrderDetails = async (id: string, newItems: any[], newTotals: any, discountRate: number) => {
     if (isSupabaseConfigured && supabase) {
       const { error } = await supabase.from('orders').update({
         order_details: newItems,
         sub_total: newTotals.subTotal,
         tax_tps: newTotals.taxTPS,
         tax_tvq: newTotals.taxTVQ,
-        total: newTotals.total
+        total: newTotals.total,
+        discount_rate: discountRate
       }).eq('id', id);
 
       if (error) {
@@ -367,7 +369,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           subTotal: newTotals.subTotal,
           taxTPS: newTotals.taxTPS,
           taxTVQ: newTotals.taxTVQ,
-          total: newTotals.total
+          total: newTotals.total,
+          discountRate: discountRate
         };
       }
       return o;

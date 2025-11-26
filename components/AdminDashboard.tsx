@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../services/store';
 import { User, Product, DEPARTMENTS, Order } from '../types';
 import { Filter, Trash2, Upload, Plus, Edit, X, Check, ChevronDown, ChevronUp, Users, Package, FileText, LogOut } from 'lucide-react';
@@ -70,8 +70,8 @@ export const AdminDashboard: React.FC = () => {
 const SidebarItem: React.FC<{ icon: any, label: string, active: boolean, onClick: () => void, badge?: number }> = ({ icon, label, active, onClick, badge }) => (
   <button
     onClick={onClick}
-    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium relative ${active ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-      }`}
+    className={`w - full flex items - center gap - 3 px - 4 py - 3 rounded - xl transition - all font - medium relative ${active ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+      } `}
   >
     {icon}
     {label}
@@ -126,7 +126,7 @@ const ClientManager: React.FC = () => {
                   {client.deliveryAddress || <span className="text-slate-300 italic">Same as address</span>}
                 </td>
                 <td className="p-4">
-                  <span className={`px-2 py-1 rounded-lg text-xs font-bold ${client.discountRate < 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                  <span className={`px - 2 py - 1 rounded - lg text - xs font - bold ${client.discountRate < 1 ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'} `}>
                     {client.discountRate} ({((1 - client.discountRate) * 100).toFixed(0)}% Off)
                   </span>
                 </td>
@@ -137,7 +137,7 @@ const ClientManager: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      if (window.confirm(`Are you sure you want to delete client "${client.name}"? This action cannot be undone.`)) {
+                      if (window.confirm(`Are you sure you want to delete client "${client.name}" ? This action cannot be undone.`)) {
                         deleteUser(client.id);
                       }
                     }}
@@ -254,7 +254,7 @@ const ProductManager: React.FC = () => {
   };
 
   const handleBulkDelete = async () => {
-    if (window.confirm(`Are you sure you want to delete ${selectedIds.size} products?`)) {
+    if (window.confirm(`Are you sure you want to delete ${selectedIds.size} products ? `)) {
       await bulkDeleteProducts(Array.from(selectedIds));
       setSelectedIds(new Set());
     }
@@ -342,7 +342,7 @@ const ProductManager: React.FC = () => {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setActiveDept('All')}
-              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${activeDept === 'All' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              className={`px - 3 py - 1.5 rounded - lg text - sm font - bold transition - colors ${activeDept === 'All' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} `}
             >
               All
             </button>
@@ -350,7 +350,7 @@ const ProductManager: React.FC = () => {
               <button
                 key={dept}
                 onClick={() => setActiveDept(dept)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${activeDept === dept ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                className={`px - 3 py - 1.5 rounded - lg text - sm font - bold transition - colors ${activeDept === dept ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'} `}
               >
                 {dept}
               </button>
@@ -394,7 +394,7 @@ const ProductManager: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {sortedProducts.map(product => (
-              <tr key={product.id} className={`hover:bg-slate-50 transition-colors group ${selectedIds.has(product.id) ? 'bg-indigo-50/30' : ''}`}>
+              <tr key={product.id} className={`hover: bg - slate - 50 transition - colors group ${selectedIds.has(product.id) ? 'bg-indigo-50/30' : ''} `}>
                 <td className="p-4 text-center">
                   <input
                     type="checkbox"
@@ -432,7 +432,7 @@ const ProductManager: React.FC = () => {
                   ${product.priceUnit.toFixed(2)}
                 </td>
                 <td className="p-4 text-right text-slate-600">
-                  {product.priceCase > 0 ? `$${product.priceCase.toFixed(2)}` : '-'}
+                  {product.priceCase > 0 ? `$${product.priceCase.toFixed(2)} ` : '-'}
                 </td>
                 <td className="p-4 text-right">
                   <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -530,22 +530,32 @@ const ProductManager: React.FC = () => {
 };
 
 // --- Edit Order Modal ---
-const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () => void, onSave: (id: string, items: any[], totals: any) => void }> = ({ order, products, onClose, onSave }) => {
+// --- Edit Order Modal ---
+const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () => void, onSave: (id: string, items: any[], totals: any, discountRate: number) => void }> = ({ order, products, onClose, onSave }) => {
   const [items, setItems] = useState([...order.items]);
+  const [discountRate, setDiscountRate] = useState<number>(order.discountRate || 1.0);
   const [isAdding, setIsAdding] = useState(false);
   const [search, setSearch] = useState('');
 
   // Calculate totals
-  const calculateTotals = (currentItems: any[]) => {
+  const calculateTotals = (currentItems: any[], currentDiscount: number) => {
     let subTotal = 0;
     let tpsTotal = 0;
     let tvqTotal = 0;
 
     currentItems.forEach(item => {
-      subTotal += item.totalLine;
+      // Calculate line total based on special price status
+      // If special price, NO discount. If normal, apply discount.
+      const effectivePrice = item.isSpecialPrice ? item.unitPrice : (item.unitPrice * currentDiscount);
+      const lineTotal = effectivePrice * item.quantity;
+
+      // Update item's totalLine for display (though we don't mutate state here directly for render, we need it for totals)
+      // Note: In a real app we might want to separate display values from stored values better
+
+      subTotal += lineTotal;
       if (item.taxable) {
-        tpsTotal += item.totalLine * 0.05;
-        tvqTotal += item.totalLine * 0.09975;
+        tpsTotal += lineTotal * 0.05;
+        tvqTotal += lineTotal * 0.09975;
       }
     });
 
@@ -557,23 +567,35 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () 
     };
   };
 
-  const totals = calculateTotals(items);
+  const totals = calculateTotals(items, discountRate);
 
-  const handleUpdateItem = (index: number, field: string, value: number) => {
+  const handleUpdateItem = (index: number, field: string, value: any) => {
     const newItems = [...items];
     const item = { ...newItems[index] };
 
     if (field === 'quantity') {
       item.quantity = value;
-      item.totalLine = item.unitPrice * value;
     } else if (field === 'unitPrice') {
       item.unitPrice = value;
-      item.totalLine = value * item.quantity;
+    } else if (field === 'isSpecialPrice') {
+      item.isSpecialPrice = value;
     }
+
+    // Recalculate line total immediately for UI feedback
+    const effectivePrice = item.isSpecialPrice ? item.unitPrice : (item.unitPrice * discountRate);
+    item.totalLine = effectivePrice * item.quantity;
 
     newItems[index] = item;
     setItems(newItems);
   };
+
+  // Update all items when discount rate changes
+  useEffect(() => {
+    setItems(prev => prev.map(item => ({
+      ...item,
+      totalLine: (item.isSpecialPrice ? item.unitPrice : (item.unitPrice * discountRate)) * item.quantity
+    })));
+  }, [discountRate]);
 
   const handleDeleteItem = (index: number) => {
     if (window.confirm('Remove this item?')) {
@@ -610,21 +632,50 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () 
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h3 className="text-lg font-bold text-slate-800">Edit Order: {order.id}</h3>
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">Edit Order: {order.id}</h3>
+            <div className="flex items-center gap-2 mt-2">
+              <label className="text-xs font-bold text-slate-500 uppercase">Client Discount Rate:</label>
+              <input
+                type="number"
+                step="0.01"
+                max="1"
+                min="0.1"
+                value={discountRate}
+                onChange={(e) => setDiscountRate(parseFloat(e.target.value))}
+                className="w-20 p-1 text-sm border border-slate-300 rounded text-center font-bold text-indigo-600"
+              />
+              <span className="text-xs text-slate-400">({((1 - discountRate) * 100).toFixed(0)}% Off)</span>
+            </div>
+          </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="space-y-4">
             {items.map((item, idx) => (
-              <div key={idx} className={`flex items-center gap-4 p-4 rounded-xl border ${item.addedByAdmin ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+              <div key={idx} className={`flex items - center gap - 4 p - 4 rounded - xl border ${item.addedByAdmin ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'} `}>
                 <div className="w-16 h-16 bg-slate-100 rounded-lg overflow-hidden flex-shrink-0">
                   <img src={item.imageUrl || 'placeholder'} alt="" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-slate-800 truncate">{item.productNameCN}</div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-bold text-slate-800 truncate">{item.productNameCN}</div>
+                    {item.isSpecialPrice && <span className="text-[10px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded">Prix Special</span>}
+                  </div>
                   <div className="text-xs text-slate-500 truncate">{item.productNameFR}</div>
-                  {item.addedByAdmin && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1 rounded">Admin Added</span>}
+                  {item.addedByAdmin && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1 rounded mt-1 inline-block">Admin Added</span>}
+
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`special - ${idx} `}
+                      checked={!!item.isSpecialPrice}
+                      onChange={(e) => handleUpdateItem(idx, 'isSpecialPrice', e.target.checked)}
+                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
+                    />
+                    <label htmlFor={`special - ${idx} `} className="text-xs font-bold text-slate-600 select-none cursor-pointer">Prix Special (No Discount)</label>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -651,6 +702,9 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () 
                   <div className="text-right w-24">
                     <div className="text-[10px] font-bold text-slate-400 uppercase">Total</div>
                     <div className="font-bold text-slate-700">${item.totalLine.toFixed(2)}</div>
+                    {!item.isSpecialPrice && discountRate < 1 && (
+                      <div className="text-[10px] text-emerald-600 font-bold">-{((1 - discountRate) * 100).toFixed(0)}%</div>
+                    )}
                   </div>
                   <button onClick={() => handleDeleteItem(idx)} className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
                     <Trash2 size={18} />
@@ -718,7 +772,7 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () 
 
         <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-4">
           <button onClick={onClose} className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
-          <button onClick={() => onSave(order.id, items, totals)} className="px-6 py-3 rounded-xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-colors">
+          <button onClick={() => onSave(order.id, items, totals, discountRate)} className="px-6 py-3 rounded-xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20 transition-colors">
             Save Changes
           </button>
         </div>
@@ -792,20 +846,20 @@ const OrderHistoryManager: React.FC = () => {
 
     // Header
     doc.setFontSize(20);
-    doc.text(`Order #${order.id}`, 14, 22);
+    doc.text(`Order #${order.id} `, 14, 22);
 
     doc.setFontSize(12);
     // Sanitize user name just in case
-    doc.text(`Client: ${sanitizeForPdf(order.userName)}`, 14, 32);
-    doc.text(`Date: ${new Date(order.date).toLocaleDateString()}`, 14, 38);
+    doc.text(`Client: ${sanitizeForPdf(order.userName)} `, 14, 32);
+    doc.text(`Date: ${new Date(order.date).toLocaleDateString()} `, 14, 38);
 
     if (order.deliveryMethod) {
       const method = order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery';
       const time = order.deliveryTime ? order.deliveryTime.replace('T', ' ') : '';
-      doc.text(`Delivery: ${method} @ ${time}`, 14, 44);
-      doc.text(`Total: $${order.total.toFixed(2)}`, 14, 50);
+      doc.text(`Delivery: ${method} @${time} `, 14, 44);
+      doc.text(`Total: $${order.total.toFixed(2)} `, 14, 50);
     } else {
-      doc.text(`Total: $${order.total.toFixed(2)}`, 14, 44);
+      doc.text(`Total: $${order.total.toFixed(2)} `, 14, 44);
     }
 
     // Sort items by Department
@@ -870,11 +924,11 @@ const OrderHistoryManager: React.FC = () => {
 
       return [
         '', // Image placeholder
-        `${nameDisplay}\nDept: ${sanitizeForPdf(item.finalDepartment)}\nTax: ${item.finalTaxable ? 'Yes' : 'No'}`,
+        `${nameDisplay} \nDept: ${sanitizeForPdf(item.finalDepartment)} \nTax: ${item.finalTaxable ? 'Yes' : 'No'} `,
         item.isCase ? 'Case' : 'Unit',
         item.quantity,
-        `$${item.unitPrice.toFixed(2)}`,
-        `$${item.totalLine.toFixed(2)}`
+        `$${item.unitPrice.toFixed(2)} `,
+        `$${item.totalLine.toFixed(2)} `
       ];
     });
 
@@ -954,28 +1008,28 @@ const OrderHistoryManager: React.FC = () => {
                 {/* Status Controls */}
                 <div className="flex items-center gap-4 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
                   <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'pending')}>
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${order.status === 'pending' || order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                    <div className={`w - 5 h - 5 rounded - full border flex items - center justify - center transition - colors ${order.status === 'pending' || order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} `}>
                       {(order.status === 'pending' || order.status === 'processing' || order.status === 'completed') && <Check size={12} className="text-white" />}
                     </div>
-                    <span className={`text-xs font-bold ${order.status === 'pending' ? 'text-indigo-600' : 'text-slate-500'}`}>New Order</span>
+                    <span className={`text - xs font - bold ${order.status === 'pending' ? 'text-indigo-600' : 'text-slate-500'} `}>New Order</span>
                   </label>
 
-                  <div className={`h-0.5 w-8 ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+                  <div className={`h - 0.5 w - 8 ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'} `}></div>
 
                   <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'processing')}>
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                    <div className={`w - 5 h - 5 rounded - full border flex items - center justify - center transition - colors ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} `}>
                       {(order.status === 'processing' || order.status === 'completed') && <Check size={12} className="text-white" />}
                     </div>
-                    <span className={`text-xs font-bold ${order.status === 'processing' ? 'text-indigo-600' : 'text-slate-500'}`}>Processing</span>
+                    <span className={`text - xs font - bold ${order.status === 'processing' ? 'text-indigo-600' : 'text-slate-500'} `}>Processing</span>
                   </label>
 
-                  <div className={`h-0.5 w-8 ${order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'}`}></div>
+                  <div className={`h - 0.5 w - 8 ${order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'} `}></div>
 
                   <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'completed')}>
-                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                    <div className={`w - 5 h - 5 rounded - full border flex items - center justify - center transition - colors ${order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} `}>
                       {order.status === 'completed' && <Check size={12} className="text-white" />}
                     </div>
-                    <span className={`text-xs font-bold ${order.status === 'completed' ? 'text-indigo-600' : 'text-slate-500'}`}>Completed</span>
+                    <span className={`text - xs font - bold ${order.status === 'completed' ? 'text-indigo-600' : 'text-slate-500'} `}>Completed</span>
                   </label>
                 </div>
                 <div className="flex gap-2 justify-end mt-2">
@@ -1111,8 +1165,8 @@ const OrderHistoryManager: React.FC = () => {
           order={editingOrder}
           products={products}
           onClose={() => setEditingOrder(null)}
-          onSave={async (id, items, totals) => {
-            await updateOrderDetails(id, items, totals);
+          onSave={async (id, items, totals, discountRate) => {
+            await updateOrderDetails(id, items, totals, discountRate);
             setEditingOrder(null);
           }}
         />
@@ -1187,14 +1241,14 @@ const BulkUploadModal: React.FC<{ onClose: () => void, onImport: (excel: File, z
               <button
                 onClick={handleImport}
                 disabled={!excelFile || isUploading}
-                className={`w-full font-bold py-3 rounded-xl shadow-lg transition-all ${!excelFile || isUploading ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'}`}
+                className={`w - full font - bold py - 3 rounded - xl shadow - lg transition - all ${!excelFile || isUploading ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'} `}
               >
                 {isUploading ? 'Processing...' : 'Start Import'}
               </button>
             </>
           ) : (
             <div className="text-center space-y-4">
-              <div className={`text-xl font-bold ${result.failed === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+              <div className={`text - xl font - bold ${result.failed === 0 ? 'text-emerald-600' : 'text-amber-600'} `}>
                 Import Completed
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1227,20 +1281,20 @@ const BulkUploadModal: React.FC<{ onClose: () => void, onImport: (excel: File, z
 
 // CSS Utility
 const styles = `
-            .form-label {
-              @apply block text-xs font-bold text-slate-500 mb-1 uppercase;
+  .form - label {
+  @apply block text - xs font - bold text - slate - 500 mb - 1 uppercase;
+}
+            .form - input {
+  @apply w - full bg - slate - 50 border border - slate - 200 p - 2.5 rounded - xl focus: border - indigo - 500 focus: ring - 1 focus: ring - indigo - 500 outline - none transition - all;
+}
+            .animate - fade -in {
+  animation: fadeIn 0.3s ease- out;
   }
-            .form-input {
-              @apply w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all;
-  }
-            .animate-fade-in {
-              animation: fadeIn 0.3s ease-out;
-  }
-            @keyframes fadeIn {
-              from {opacity: 0; transform: translateY(10px); }
-            to {opacity: 1; transform: translateY(0); }
-  }
-            `;
+@keyframes fadeIn {
+              from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+}
+`;
 const styleSheet = document.createElement("style");
 styleSheet.innerText = styles;
 document.head.appendChild(styleSheet);

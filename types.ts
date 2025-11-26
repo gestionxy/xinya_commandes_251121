@@ -50,9 +50,11 @@ export interface Order {
     imageUrl?: string;
     department?: string;
     taxable?: boolean;
-    addedByAdmin?: boolean; // New field
+    addedByAdmin?: boolean;
+    isSpecialPrice?: boolean; // New field: if true, excludes from global discount
   }[];
   subTotal: number;
+  discountRate?: number; // New field: specific discount rate for this order
   discountAmount: number; // Saved amount
   taxTPS: number;
   taxTVQ: number;

@@ -1575,9 +1575,9 @@ const OrderHistoryManager: React.FC = () => {
       });
 
       doc.save(`Order_${order.id}.pdf`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating PDF:", error);
-      alert("Failed to generate PDF. Please check console for details.");
+      alert(`Failed to generate PDF: ${error?.message || error}`);
     }
   };
 

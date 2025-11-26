@@ -1545,7 +1545,14 @@ const OrderHistoryManager: React.FC = () => {
         const price = `$${item.unitPrice.toFixed(2)} `;
         const total = `$${item.totalLine.toFixed(2)} `;
 
-        return ['', details, qty, price, total];
+        // Pass imageData in the cell object for safe access in didDrawCell
+        return [
+          { content: '', imageData: item.imageData },
+          details,
+          qty,
+          price,
+          total
+        ];
       });
 
       autoTable(doc, {
@@ -1554,11 +1561,11 @@ const OrderHistoryManager: React.FC = () => {
         body: tableRows,
         didDrawCell: (data) => {
           if (data.section === 'body' && data.column.index === 0) {
-            const item = itemsWithImages[data.row.index];
-            if (item.imageData) {
+            const raw = data.cell.raw as any;
+            if (raw && raw.imageData) {
               try {
                 // Image in dedicated column, size 35x35
-                doc.addImage(item.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 35);
+                doc.addImage(raw.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 35);
               } catch (e) {
                 // Ignore image errors
               }

@@ -121,7 +121,7 @@ const ClientManager: React.FC = () => {
                     <span className="text-xs text-slate-400 mt-1">{client.phone || 'No Phone'}</span>
                   </div>
                 </td>
-                <td className="p-4 text-slate-600 max-w-xs truncate">{client.address || '-'}</td>
+                <td className="p-4 text-slate-600 max-w-xs break-words">{client.address || '-'}</td>
                 <td className="p-4 text-slate-600 max-w-xs break-words">
                   {client.deliveryAddress || <span className="text-slate-300 italic">Same as address</span>}
                 </td>
@@ -532,8 +532,9 @@ const ProductManager: React.FC = () => {
 // --- Order History Manager ---
 
 const OrderHistoryManager: React.FC = () => {
-  const { orders, users, products, deleteOrder, updateOrderStatus } = useStore();
+  const { orders, users, products, deleteOrder, updateOrderStatus, updateOrderDetails } = useStore();
   const [filterClient, setFilterClient] = useState<string>('all');
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   const filteredOrders = orders.filter(o => filterClient === 'all' || o.userId === filterClient);
   const sortedOrders = [...filteredOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -850,19 +851,32 @@ const OrderHistoryManager: React.FC = () => {
                           </td>
                           <td className="p-2">
                             <div className="text-slate-800 font-medium">{item.productNameCN}</div>
-                            <div className="text-slate-400 text-xs">{item.productNameFR}</div>
+                            <div className="text-xs text-slate-500">{item.productNameFR}</div>
+                            {item.addedByAdmin && (
+                              <span className="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded mt-1">
+                                Admin Added / 后加
+                              </span>
+                            )}
                           </td>
-                          <td className="p-2 text-slate-500 text-xs">
-                            <span className="bg-slate-100 px-2 py-1 rounded-full">{displayDept || '-'}</span>
+                          <td className="p-2 text-slate-600 text-xs">
+                            {displayDept}
                           </td>
                           <td className="p-2 text-center">
-                            {displayTax ? <span className="text-amber-600 text-xs font-bold bg-amber-50 px-2 py-1 rounded">Tax</span> : <span className="text-slate-300">-</span>}
+                            {displayTax ? (
+                              <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-bold">Tax</span>
+                            ) : (
+                              <span className="text-slate-300">-</span>
+                            )}
                           </td>
-                          <td className="p-2 text-right text-slate-700">
-                            {item.quantity} <span className="text-xs text-slate-400 uppercase">{item.isCase ? 'Case' : 'Unit'}</span>
+                          <td className="p-2 text-right font-mono">
+                            {item.quantity} <span className="text-xs text-slate-400">{item.isCase ? 'cs' : 'un'}</span>
                           </td>
-                          <td className="p-2 text-right text-slate-700">${item.unitPrice.toFixed(2)}</td>
-                          <td className="p-2 text-right font-medium pr-4">${item.totalLine.toFixed(2)}</td>
+                          <td className="p-2 text-right font-mono text-slate-600">
+                            ${item.unitPrice.toFixed(2)}
+                          </td>
+                          <td className="p-2 text-right font-mono font-bold text-slate-700 pr-4">
+                            ${item.totalLine.toFixed(2)}
+                          </td>
                         </tr>
                       );
                     })}
@@ -870,11 +884,22 @@ const OrderHistoryManager: React.FC = () => {
               </table>
             </div>
 
-            <div className="mt-4 flex justify-end text-sm text-slate-600 gap-6 bg-slate-50 p-3 rounded-xl">
-              <div>Subtotal: <span className="font-bold">${order.subTotal.toFixed(2)}</span></div>
-              <div>TPS (5%): <span className="font-bold">${order.taxTPS.toFixed(2)}</span></div>
-              <div>TVQ (9.975%): <span className="font-bold">${order.taxTVQ.toFixed(2)}</span></div>
-              <div className="text-indigo-600">Total: <span className="font-bold">${order.total.toFixed(2)}</span></div>
+            <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end gap-4 text-sm">
+              <div className="text-right space-y-1">
+                <div className="text-slate-500">Subtotal: <span className="font-mono font-bold text-slate-700">${order.subTotal.toFixed(2)}</span></div>
+                <div className="text-slate-500">TPS (5%): <span className="font-mono font-bold text-slate-700">${order.taxTPS.toFixed(2)}</span></div>
+                <div className="text-slate-500">TVQ (9.975%): <span className="font-mono font-bold text-slate-700">${order.taxTVQ.toFixed(2)}</span></div>
+                <div className="text-lg font-bold text-indigo-600 mt-2">Total: ${order.total.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setEditingOrder(order)}
+                className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-bold shadow-md shadow-indigo-200"
+              >
+                Edit Order / 修改订单
+              </button>
             </div>
           </div>
         ))}

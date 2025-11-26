@@ -27,6 +27,7 @@ interface StoreContextType {
   deleteUser: (id: string) => Promise<void>;
   deleteOrder: (id: string) => Promise<void>;
   updateOrderStatus: (id: string, status: 'pending' | 'processing' | 'completed' | 'cancelled') => Promise<void>;
+  updateOrderDetails: (id: string, newItems: any[], newTotals: any) => Promise<void>;
   bulkImportProducts: (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => Promise<BulkImportResult>;
 }
 
@@ -341,6 +342,38 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
   };
 
+  const updateOrderDetails = async (id: string, newItems: any[], newTotals: any) => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from('orders').update({
+        order_details: newItems,
+        sub_total: newTotals.subTotal,
+        tax_tps: newTotals.taxTPS,
+        tax_tvq: newTotals.taxTVQ,
+        total: newTotals.total
+      }).eq('id', id);
+
+      if (error) {
+        console.error("Error updating order details:", error);
+        alert(`Failed to update order details: ${error.message}`);
+        return;
+      }
+    }
+
+    setOrders(prev => prev.map(o => {
+      if (o.id === id) {
+        return {
+          ...o,
+          items: newItems,
+          subTotal: newTotals.subTotal,
+          taxTPS: newTotals.taxTPS,
+          taxTVQ: newTotals.taxTVQ,
+          total: newTotals.total
+        };
+      }
+      return o;
+    }));
+  };
+
   const bulkImportProducts = async (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => {
     const result = await parseAndImport(excelFile, zipFile, onProgress);
     // Refresh products from DB if successful
@@ -425,7 +458,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       currentUser, users, products, orders, cart, isLoading,
       login, logout, register,
       addToCart, removeFromCart, clearCart, placeOrder,
-      updateUser, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser, deleteOrder, updateOrderStatus,
+      updateUser, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser, deleteOrder, updateOrderStatus, updateOrderDetails,
       bulkImportProducts
     }}>
       {children}

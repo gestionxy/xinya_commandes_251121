@@ -50,6 +50,7 @@ export interface Order {
     imageUrl?: string;
     department?: string;
     taxable?: boolean;
+    addedByAdmin?: boolean; // New field
   }[];
   subTotal: number;
   discountAmount: number; // Saved amount

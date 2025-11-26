@@ -1406,111 +1406,121 @@ const OrderHistoryManager: React.FC = () => {
   };
 
   const generatePDF = async (order: Order) => {
-    const doc = new jsPDF();
+    try {
+      const doc = new jsPDF();
 
-    // Header
-    doc.setFontSize(20);
-    doc.text(`Order ${order.id} `, 14, 22);
+      // Header
+      doc.setFontSize(20);
+      doc.text(`Order ${order.id} `, 14, 22);
 
-    doc.setFontSize(12);
-    // Sanitize user name just in case
-    doc.text(`Client: ${sanitizeForPdf(order.userName)} `, 14, 32);
-    doc.text(`Date: ${new Date(order.date).toLocaleDateString()} `, 14, 38);
+      doc.setFontSize(12);
+      // Sanitize user name just in case
+      doc.text(`Client: ${sanitizeForPdf(order.userName)} `, 14, 32);
+      doc.text(`Date: ${new Date(order.date).toLocaleDateString()} `, 14, 38);
 
-    if (order.deliveryMethod) {
-      const method = order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery';
-      const time = order.deliveryTime ? order.deliveryTime.replace('T', ' ') : '';
-      doc.text(`Delivery: ${method} @${time} `, 14, 44);
-      doc.text(`Total: $${order.total.toFixed(2)} `, 14, 50);
-    } else {
-      doc.text(`Total: $${order.total.toFixed(2)} `, 14, 44);
-    }
-
-    // Sort items by Department
-    const sortedItems = [...order.items].sort((a, b) => {
-      const deptA = a.department || '';
-      const deptB = b.department || '';
-      return deptA.localeCompare(deptB);
-    });
-
-    // Pre-load images and details
-    const itemsWithImages = await Promise.all(sortedItems.map(async (item) => {
-      // 1. Try item.imageUrl, department, taxable
-      // 2. Fallback to finding product in store
-      let imageUrl = item.imageUrl;
-      let department = item.department;
-      let taxable = item.taxable;
-      let productExists = true;
-
-      if (!imageUrl || !department || taxable === undefined) {
-        const p = products.find(prod => prod.nameCN === item.productNameCN); // Try matching by name if ID not available in item
-        if (p) {
-          if (!imageUrl) imageUrl = p.imageUrl;
-          if (!department) department = p.department;
-          if (taxable === undefined) taxable = p.taxable;
-        } else {
-          // Product not found in current inventory
-          if (!imageUrl) productExists = false;
-        }
+      if (order.deliveryMethod) {
+        const method = order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery';
+        const time = order.deliveryTime ? order.deliveryTime.replace('T', ' ') : '';
+        doc.text(`Delivery: ${method} @${time} `, 14, 44);
+        doc.text(`Total: $${order.total.toFixed(2)} `, 14, 50);
+      } else {
+        doc.text(`Total: $${order.total.toFixed(2)} `, 14, 44);
       }
 
-      let imageData = null;
-      if (imageUrl) {
-        imageData = await getDataUrl(imageUrl);
-      }
+      // Sort items by Department
+      const sortedItems = [...order.items].sort((a, b) => {
+        const deptA = a.department || '';
+        const deptB = b.department || '';
+        return deptA.localeCompare(deptB);
+      });
 
-      return {
-        ...item,
-        imageData,
-        department,
-        taxable,
-        productExists
-      };
-    }));
+      // Pre-load images and details
+      const itemsWithImages = await Promise.all(sortedItems.map(async (item) => {
+        // 1. Try item.imageUrl, department, taxable
+        // 2. Fallback to finding product in store
+        let imageUrl = item.imageUrl;
+        let department = item.department;
+        let taxable = item.taxable;
+        let productExists = true;
 
-    const tableRows = itemsWithImages.map(item => {
-      const name = sanitizeForPdf(item.productNameCN);
-      const dept = item.department ? `Dept: ${sanitizeForPdf(item.department)}` : '';
-      const taxInfo = `Tax: ${item.taxable ? 'Yes' : 'No'}`;
-      const status = !item.productExists ? ' (Deleted)' : '';
-
-      // Combine details into one cell with newlines
-      const details = `${name}${status}\n${dept}\n${taxInfo}`;
-
-      const qty = `${item.quantity} ${item.isCase ? '(Case)' : '(Unit)'} `;
-      const price = `$${item.unitPrice.toFixed(2)} `;
-      const total = `$${item.totalLine.toFixed(2)} `;
-
-      return ['', details, qty, price, total];
-    });
-
-    autoTable(doc, {
-      startY: 60,
-      head: [['Image', 'Product Details', 'Qty', 'Price', 'Total']],
-      body: tableRows,
-      didDrawCell: (data) => {
-        if (data.section === 'body' && data.column.index === 0) {
-          const item = itemsWithImages[data.row.index];
-          if (item.imageData) {
-            try {
-              // Image in dedicated column, size 35x35
-              doc.addImage(item.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 35);
-            } catch (e) {
-              // Ignore image errors
-            }
+        if (!imageUrl || !department || taxable === undefined) {
+          const p = products.find(prod => prod.nameCN === item.productNameCN); // Try matching by name if ID not available in item
+          if (p) {
+            if (!imageUrl) imageUrl = p.imageUrl;
+            if (!department) department = p.department;
+            if (taxable === undefined) taxable = p.taxable;
+          } else {
+            // Product not found in current inventory
+            if (!imageUrl) productExists = false;
           }
         }
-      },
-      styles: { valign: 'middle' },
-      headStyles: { minCellHeight: 10 }, // Standard height for header
-      bodyStyles: { minCellHeight: 40 }, // Increased height for body rows (images)
-      columnStyles: {
-        0: { cellWidth: 40 }, // Dedicated Image column
-        1: { cellWidth: 80 }  // Product Details column (wider)
-      }
-    });
 
-    doc.save(`Order_${order.id}.pdf`);
+        let imageData = null;
+        if (imageUrl) {
+          try {
+            imageData = await getDataUrl(imageUrl);
+          } catch (err) {
+            console.error("Failed to load image for PDF:", imageUrl, err);
+            // Continue without image
+          }
+        }
+
+        return {
+          ...item,
+          imageData,
+          department,
+          taxable,
+          productExists
+        };
+      }));
+
+      const tableRows = itemsWithImages.map(item => {
+        const name = sanitizeForPdf(item.productNameCN);
+        const dept = item.department ? `Dept: ${sanitizeForPdf(item.department)}` : '';
+        const taxInfo = `Tax: ${item.taxable ? 'Yes' : 'No'}`;
+        const status = !item.productExists ? ' (Deleted)' : '';
+
+        // Combine details into one cell with newlines
+        const details = `${name}${status}\n${dept}\n${taxInfo}`;
+
+        const qty = `${item.quantity} ${item.isCase ? '(Case)' : '(Unit)'} `;
+        const price = `$${item.unitPrice.toFixed(2)} `;
+        const total = `$${item.totalLine.toFixed(2)} `;
+
+        return ['', details, qty, price, total];
+      });
+
+      autoTable(doc, {
+        startY: 60,
+        head: [['Image', 'Product Details', 'Qty', 'Price', 'Total']],
+        body: tableRows,
+        didDrawCell: (data) => {
+          if (data.section === 'body' && data.column.index === 0) {
+            const item = itemsWithImages[data.row.index];
+            if (item.imageData) {
+              try {
+                // Image in dedicated column, size 35x35
+                doc.addImage(item.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 35);
+              } catch (e) {
+                // Ignore image errors
+              }
+            }
+          }
+        },
+        styles: { valign: 'middle' },
+        headStyles: { minCellHeight: 10 }, // Standard height for header
+        bodyStyles: { minCellHeight: 40 }, // Increased height for body rows (images)
+        columnStyles: {
+          0: { cellWidth: 40 }, // Dedicated Image column
+          1: { cellWidth: 80 }  // Product Details column (wider)
+        }
+      });
+
+      doc.save(`Order_${order.id}.pdf`);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("Failed to generate PDF. Please check console for details.");
+    }
   };
 
   return (

@@ -753,6 +753,7 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     doc.text(invoiceData.orderDate, pageWidth - 25, yPos, { align: 'right' });
 
     // Addresses
+    // Addresses
     yPos = 90;
     // Sold To
     doc.setFontSize(11);
@@ -761,9 +762,17 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     doc.setFontSize(10);
     doc.setTextColor(0);
     doc.text(invoiceData.soldToName, 20, yPos + 6);
-    const soldAddressLines = doc.splitTextToSize(invoiceData.soldToAddress, 80);
-    doc.text(soldAddressLines, 20, yPos + 12);
-    doc.text(`Tel: ${invoiceData.soldToPhone}`, 20, yPos + 12 + (soldAddressLines.length * 5));
+
+    // Split address by semicolon for manual line breaks, then wrap if needed
+    const soldAddressParts = invoiceData.soldToAddress.split(';').map(part => part.trim()).filter(part => part);
+    let currentY = yPos + 12;
+    soldAddressParts.forEach(part => {
+      const lines = doc.splitTextToSize(part, 80);
+      doc.text(lines, 20, currentY);
+      currentY += (lines.length * 5);
+    });
+    doc.text(`Tel: ${invoiceData.soldToPhone}`, 20, currentY);
+    const soldToEndY = currentY + 5;
 
     // Ship To
     doc.setFontSize(11);
@@ -772,12 +781,19 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     doc.setFontSize(10);
     doc.setTextColor(0);
     doc.text(invoiceData.shipToName, pageWidth / 2 + 10, yPos + 6);
-    const shipAddressLines = doc.splitTextToSize(invoiceData.shipToAddress, 80);
-    doc.text(shipAddressLines, pageWidth / 2 + 10, yPos + 12);
-    doc.text(`Tel: ${invoiceData.shipToPhone}`, pageWidth / 2 + 10, yPos + 12 + (shipAddressLines.length * 5));
+
+    const shipAddressParts = invoiceData.shipToAddress.split(';').map(part => part.trim()).filter(part => part);
+    currentY = yPos + 12;
+    shipAddressParts.forEach(part => {
+      const lines = doc.splitTextToSize(part, 80);
+      doc.text(lines, pageWidth / 2 + 10, currentY);
+      currentY += (lines.length * 5);
+    });
+    doc.text(`Tel: ${invoiceData.shipToPhone}`, pageWidth / 2 + 10, currentY);
+    const shipToEndY = currentY + 5;
 
     // Table
-    const tableStartY = Math.max(yPos + 12 + (soldAddressLines.length * 5), yPos + 12 + (shipAddressLines.length * 5)) + 15;
+    const tableStartY = Math.max(soldToEndY, shipToEndY) + 10;
 
     const tableRows = order.items.map((item, index) => {
       const description = item.productNameFR || item.productNameCN || 'Item';

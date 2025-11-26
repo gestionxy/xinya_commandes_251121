@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../services/store';
-import { User, Product, DEPARTMENTS, Order } from '../types';
+import { User, Product, DEPARTMENTS, Order, CompanyInfo } from '../types';
 import { Filter, Trash2, Upload, Plus, Edit, X, Check, ChevronDown, ChevronUp, Users, Package, FileText, LogOut } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -686,7 +686,303 @@ const ProductManager: React.FC = () => {
   );
 };
 
-// --- Edit Order Modal ---
+// --- Invoice Modal ---
+const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, users: User[], onClose: () => void }> = ({ order, companyInfo, users, onClose }) => {
+  const client = users.find(u => u.id === order.userId);
+
+  // Initial State from Props
+  const [invoiceData, setInvoiceData] = useState({
+    invoiceNumber: order.id,
+    invoiceDate: new Date().toISOString().split('T')[0],
+    orderDate: new Date(order.date).toISOString().split('T')[0],
+
+    // Admin Info (From Company Info)
+    adminName: companyInfo?.name || '',
+    adminAddress: companyInfo?.address || '',
+    adminPhone: companyInfo?.phone || '',
+    adminEmail: companyInfo?.email || '',
+    adminGst: companyInfo?.gst || '',
+    adminQst: companyInfo?.qst || '',
+
+    // Sold To (Client Profile)
+    soldToName: client?.name || order.userName || '',
+    soldToAddress: client?.address || '',
+    soldToPhone: client?.phone || '',
+
+    // Ship To (Delivery Info)
+    shipToName: client?.name || order.userName || '',
+    shipToAddress: order.deliveryMethod === 'delivery' ? (client?.deliveryAddress || client?.address || '') : 'Pickup',
+    shipToPhone: client?.phone || ''
+  });
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+
+    // --- Header ---
+    doc.setFontSize(24);
+    doc.setTextColor(79, 70, 229); // Indigo 600
+    doc.text("FACTURE", pageWidth - 20, 20, { align: 'right' });
+
+    // Admin Info
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    let yPos = 20;
+    doc.text(invoiceData.adminName, 20, yPos); yPos += 5;
+    doc.text(invoiceData.adminAddress, 20, yPos); yPos += 5;
+    doc.text(`Tel: ${invoiceData.adminPhone}`, 20, yPos); yPos += 5;
+    doc.text(`Email: ${invoiceData.adminEmail}`, 20, yPos); yPos += 5;
+    if (invoiceData.adminGst) { doc.text(`GST: ${invoiceData.adminGst}`, 20, yPos); yPos += 5; }
+    if (invoiceData.adminQst) { doc.text(`QST: ${invoiceData.adminQst}`, 20, yPos); yPos += 5; }
+
+    // Invoice Details Box
+    yPos = 55;
+    doc.setDrawColor(200);
+    doc.setFillColor(245, 247, 255);
+    doc.rect(pageWidth - 90, yPos - 5, 70, 25, 'F');
+
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text("Facture #:", pageWidth - 85, yPos);
+    doc.text(invoiceData.invoiceNumber, pageWidth - 25, yPos, { align: 'right' });
+    yPos += 6;
+    doc.text("Date:", pageWidth - 85, yPos);
+    doc.text(invoiceData.invoiceDate, pageWidth - 25, yPos, { align: 'right' });
+    yPos += 6;
+    doc.text("Date de commande:", pageWidth - 85, yPos);
+    doc.text(invoiceData.orderDate, pageWidth - 25, yPos, { align: 'right' });
+
+    // Addresses
+    yPos = 90;
+    // Sold To
+    doc.setFontSize(11);
+    doc.setTextColor(79, 70, 229);
+    doc.text("Vendu à:", 20, yPos);
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(invoiceData.soldToName, 20, yPos + 6);
+    const soldAddressLines = doc.splitTextToSize(invoiceData.soldToAddress, 80);
+    doc.text(soldAddressLines, 20, yPos + 12);
+    doc.text(`Tel: ${invoiceData.soldToPhone}`, 20, yPos + 12 + (soldAddressLines.length * 5));
+
+    // Ship To
+    doc.setFontSize(11);
+    doc.setTextColor(79, 70, 229);
+    doc.text("Livraison à:", pageWidth / 2 + 10, yPos);
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(invoiceData.shipToName, pageWidth / 2 + 10, yPos + 6);
+    const shipAddressLines = doc.splitTextToSize(invoiceData.shipToAddress, 80);
+    doc.text(shipAddressLines, pageWidth / 2 + 10, yPos + 12);
+    doc.text(`Tel: ${invoiceData.shipToPhone}`, pageWidth / 2 + 10, yPos + 12 + (shipAddressLines.length * 5));
+
+    // Table
+    const tableStartY = Math.max(yPos + 12 + (soldAddressLines.length * 5), yPos + 12 + (shipAddressLines.length * 5)) + 15;
+
+    const tableRows = order.items.map((item, index) => {
+      const description = item.productNameFR || item.productNameCN || 'Item';
+      const unit = item.isCase ? 'Case' : 'Unit';
+      const price = item.isSpecialPrice ? item.unitPrice : (item.unitPrice * (order.discountRate || 1));
+      const discountText = (!item.isSpecialPrice && (order.discountRate || 1) < 1)
+        ? `-${((1 - (order.discountRate || 1)) * 100).toFixed(0)}%`
+        : '';
+
+      return [
+        index + 1,
+        item.isSpecialPrice ? `${description} *` : description,
+        `${item.quantity} (${unit})`,
+        `$${item.unitPrice.toFixed(2)}`,
+        discountText,
+        `$${item.totalLine.toFixed(2)}`
+      ];
+    });
+
+    autoTable(doc, {
+      startY: tableStartY,
+      head: [['No.', 'Description', 'QTY', 'Prix', 'Disc.', 'Montant']],
+      body: tableRows,
+      theme: 'striped',
+      headStyles: { fillColor: [79, 70, 229] },
+      columnStyles: {
+        0: { cellWidth: 15 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 25, halign: 'right' },
+        4: { cellWidth: 20, halign: 'center' },
+        5: { cellWidth: 30, halign: 'right' }
+      },
+      foot: [
+        ['', '', '', '', 'Sous-total:', `$${order.subTotal.toFixed(2)}`],
+        ['', '', '', '', 'TPS (5%):', `$${order.taxTPS.toFixed(2)}`],
+        ['', '', '', '', 'TVQ (9.975%):', `$${order.taxTVQ.toFixed(2)}`],
+        ['', '', '', '', 'Total:', `$${order.total.toFixed(2)}`]
+      ],
+      footStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'right' },
+      didDrawPage: (data) => {
+        // Footer Note
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text("* Prix Special: Cet article n'est pas soumis au rabais global.", 20, pageHeight - 10);
+      }
+    });
+
+    doc.save(`Facture_${invoiceData.invoiceNumber}.pdf`);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <FileText className="text-indigo-600" />
+            Generate Invoice / 生成发票
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
+          <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 space-y-8">
+            {/* Header Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Admin Info */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">From (Admin)</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="text-xs text-slate-500 block mb-1">Company Name</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminName} onChange={e => setInvoiceData({ ...invoiceData, adminName: e.target.value })} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-slate-500 block mb-1">Address</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminAddress} onChange={e => setInvoiceData({ ...invoiceData, adminAddress: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Phone</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminPhone} onChange={e => setInvoiceData({ ...invoiceData, adminPhone: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Email</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminEmail} onChange={e => setInvoiceData({ ...invoiceData, adminEmail: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">GST</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminGst} onChange={e => setInvoiceData({ ...invoiceData, adminGst: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">QST</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminQst} onChange={e => setInvoiceData({ ...invoiceData, adminQst: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Invoice Details */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Invoice Details</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Invoice Number</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg font-mono font-bold" value={invoiceData.invoiceNumber} onChange={e => setInvoiceData({ ...invoiceData, invoiceNumber: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Date de facture</label>
+                    <input type="date" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.invoiceDate} onChange={e => setInvoiceData({ ...invoiceData, invoiceDate: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Date de commande</label>
+                    <input type="date" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.orderDate} onChange={e => setInvoiceData({ ...invoiceData, orderDate: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* Client Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Sold To */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Vendu à (Sold To)</h3>
+                <div className="space-y-3">
+                  <input type="text" className="w-full text-sm border-slate-200 rounded-lg font-bold" value={invoiceData.soldToName} onChange={e => setInvoiceData({ ...invoiceData, soldToName: e.target.value })} placeholder="Client Name" />
+                  <textarea className="w-full text-sm border-slate-200 rounded-lg" rows={2} value={invoiceData.soldToAddress} onChange={e => setInvoiceData({ ...invoiceData, soldToAddress: e.target.value })} placeholder="Address" />
+                  <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.soldToPhone} onChange={e => setInvoiceData({ ...invoiceData, soldToPhone: e.target.value })} placeholder="Phone" />
+                </div>
+              </div>
+
+              {/* Ship To */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Livraison à (Ship To)</h3>
+                <div className="space-y-3">
+                  <input type="text" className="w-full text-sm border-slate-200 rounded-lg font-bold" value={invoiceData.shipToName} onChange={e => setInvoiceData({ ...invoiceData, shipToName: e.target.value })} placeholder="Client Name" />
+                  <textarea className="w-full text-sm border-slate-200 rounded-lg" rows={2} value={invoiceData.shipToAddress} onChange={e => setInvoiceData({ ...invoiceData, shipToAddress: e.target.value })} placeholder="Delivery Address" />
+                  <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.shipToPhone} onChange={e => setInvoiceData({ ...invoiceData, shipToPhone: e.target.value })} placeholder="Phone" />
+                </div>
+              </div>
+            </div>
+
+            {/* Items Preview (Read Only) */}
+            <div className="mt-8">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Items Preview</h3>
+              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 w-12">No.</th>
+                      <th className="px-4 py-3">Description</th>
+                      <th className="px-4 py-3 w-32">QTY</th>
+                      <th className="px-4 py-3 w-24 text-right">Prix</th>
+                      <th className="px-4 py-3 w-24 text-center">Disc.</th>
+                      <th className="px-4 py-3 w-24 text-right">Montant</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {order.items.map((item, index) => (
+                      <tr key={index} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-slate-400">{index + 1}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-800">{item.productNameFR || item.productNameCN}</div>
+                          {item.isSpecialPrice && <div className="text-xs text-amber-600 font-medium">* Prix Special</div>}
+                        </td>
+                        <td className="px-4 py-3 text-slate-600">
+                          {item.quantity} <span className="text-xs text-slate-400">({item.isCase ? 'Case' : 'Unit'})</span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-600">${item.unitPrice.toFixed(2)}</td>
+                        <td className="px-4 py-3 text-center text-emerald-600 font-medium">
+                          {!item.isSpecialPrice && (order.discountRate || 1) < 1 ? `-${((1 - (order.discountRate || 1)) * 100).toFixed(0)}%` : '-'}
+                        </td>
+                        <td className="px-4 py-3 text-right font-medium text-slate-800">${item.totalLine.toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-slate-50 font-bold text-slate-800">
+                    <tr>
+                      <td colSpan={5} className="px-4 py-3 text-right">Total:</td>
+                      <td className="px-4 py-3 text-right text-indigo-600">${order.total.toFixed(2)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-4">
+          <button onClick={onClose} className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">
+            Cancel
+          </button>
+          <button onClick={generatePDF} className="px-6 py-2.5 rounded-xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center gap-2">
+            <Upload size={18} className="rotate-180" />
+            Download PDF / 下载发票
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Edit Order Modal ---
 const EditOrderModal: React.FC<{ order: Order, products: Product[], clientDiscountRate: number, onClose: () => void, onSave: (id: string, items: any[], totals: any, discountRate: number) => void }> = ({ order, products, clientDiscountRate, onClose, onSave }) => {
   const [items, setItems] = useState([...order.items]);
@@ -957,9 +1253,10 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], clientDiscou
 // --- Order History Manager ---
 
 const OrderHistoryManager: React.FC = () => {
-  const { orders, users, products, deleteOrder, updateOrderStatus, updateOrderDetails } = useStore();
+  const { orders, users, products, deleteOrder, updateOrderStatus, updateOrderDetails, companyInfo } = useStore();
   const [filterClient, setFilterClient] = useState<string>('all');
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [invoicingOrder, setInvoicingOrder] = useState<Order | null>(null);
 
   const filteredOrders = orders.filter(o => filterClient === 'all' || o.userId === filterClient);
   const sortedOrders = [...filteredOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -1048,277 +1345,172 @@ const OrderHistoryManager: React.FC = () => {
       // 2. Fallback to finding product in store
       let imageUrl = item.imageUrl;
       let productExists = true;
-
       if (!imageUrl) {
-        const product = products.find(p => p.nameCN === item.productNameCN);
-        if (product) {
-          imageUrl = product.imageUrl;
+        const p = products.find(prod => prod.nameCN === item.productNameCN); // Try matching by name if ID not available in item
+        if (p) {
+          imageUrl = p.imageUrl;
         } else {
           productExists = false;
         }
       }
 
-      let base64Img: string | null = null;
-      if (imageUrl && !imageUrl.includes('placeholder')) {
-        base64Img = await getDataUrl(imageUrl);
-      }
-
-      // Determine department text for PDF (Strip Chinese)
-      // Department format is usually "French / Chinese"
-      let deptText = item.department || (products.find(p => p.nameCN === item.productNameCN)?.department) || '-';
-      if (deptText.includes('/')) {
-        deptText = deptText.split('/')[0].trim(); // Take the first part (French)
-      }
-
-      // Fallback for taxable status
-      // If item.taxable is false/undefined, check if the product exists and is taxable.
-      // This fixes legacy orders where taxable status might not have been saved but tax was collected.
-      let isTaxable = item.taxable;
-      if (!isTaxable) {
-        const product = products.find(p => p.nameCN === item.productNameCN);
-        if (product && product.taxable) {
-          isTaxable = true;
-        }
+      let imageData = null;
+      if (imageUrl) {
+        imageData = await getDataUrl(imageUrl);
       }
 
       return {
         ...item,
-        base64Img,
-        finalDepartment: deptText,
-        productExists,
-        finalTaxable: isTaxable
+        imageData,
+        productExists
       };
     }));
 
-    const tableBody = itemsWithImages.map((item) => {
-      // Use CN name for PDF as requested, but sanitize it to avoid garbage
-      const rawName = item.productNameCN || item.productNameFR;
-      const nameDisplay = sanitizeForPdf(rawName);
+    const tableRows = itemsWithImages.map(item => {
+      const name = sanitizeForPdf(item.productNameCN);
+      const qty = `${item.quantity} ${item.isCase ? '(Case)' : '(Unit)'} `;
+      const price = `$${item.unitPrice.toFixed(2)} `;
+      const total = `$${item.totalLine.toFixed(2)} `;
+      const tax = item.taxable ? 'Tax' : '';
+      const status = !item.productExists ? '(Deleted)' : '';
 
-      return [
-        '', // Image placeholder
-        `${nameDisplay} \nDept: ${sanitizeForPdf(item.finalDepartment)} \nTax: ${item.finalTaxable ? 'Yes' : 'No'} `,
-        item.isCase ? 'Case' : 'Unit',
-        item.quantity,
-        `$${item.unitPrice.toFixed(2)} `,
-        `$${item.totalLine.toFixed(2)} `
-      ];
+      return [name + status, qty, price, tax, total];
     });
 
     autoTable(doc, {
-      head: [['Image', 'Product Details', 'Type', 'Qty', 'Price', 'Total']],
-      body: tableBody,
-      startY: order.deliveryMethod ? 56 : 50,
-      rowPageBreak: 'avoid',
-      // 5 items per page -> A4 (297mm) - margins (~40mm) = 250mm / 5 = 50mm per row
-      bodyStyles: { minCellHeight: 45, valign: 'middle', fontSize: 12 },
-      columnStyles: {
-        0: { cellWidth: 45 }, // Big image column
-        1: { cellWidth: 'auto' },
-      },
+      startY: 60,
+      head: [['Item', 'Qty', 'Price', 'Tax', 'Total']],
+      body: tableRows,
       didDrawCell: (data) => {
         if (data.section === 'body' && data.column.index === 0) {
           const item = itemsWithImages[data.row.index];
-          if (item.base64Img) {
+          if (item.imageData) {
             try {
-              // Draw image centered in cell
-              const dim = 40; // 40mm square
-              const x = data.cell.x + (data.cell.width - dim) / 2;
-              const y = data.cell.y + (data.cell.height - dim) / 2;
-              doc.addImage(item.base64Img, 'JPEG', x, y, dim, dim);
-            } catch (err) {
-              console.error('PDF addImage failed', err);
+              doc.addImage(item.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 10, 10);
+            } catch (e) {
+              // Ignore image errors
             }
-          } else {
-            // Draw "No Image" text
-            doc.setFontSize(8);
-            doc.text("Image N/A", data.cell.x + 10, data.cell.y + 20);
           }
         }
+      },
+      styles: { minCellHeight: 15, valign: 'middle' },
+      columnStyles: {
+        0: { cellWidth: 80 } // Wider column for Item name + image
       }
     });
 
-    doc.save(`order_${order.id}.pdf`);
+    doc.save(`Order_${order.id}.pdf`);
   };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">Order History</h2>
-        <div className="flex items-center gap-2">
-          <Filter size={18} className="text-slate-400" />
-          <select
-            value={filterClient}
-            onChange={(e) => setFilterClient(e.target.value)}
-            className="bg-white border border-slate-200 text-sm rounded-lg p-2.5 focus:border-indigo-500 outline-none"
-          >
-            <option value="all">All Clients</option>
-            {users.filter(u => u.role === 'client').map(u => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <select
+              className="pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              value={filterClient}
+              onChange={(e) => setFilterClient(e.target.value)}
+            >
+              <option value="all">All Clients</option>
+              {users.filter(u => u.role === 'client').map(client => (
+                <option key={client.id} value={client.id}>{client.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-6">
         {sortedOrders.map(order => (
           <div key={order.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-4 border-b border-slate-100 pb-4">
+            <div className="flex justify-between items-start mb-6">
               <div>
-                <h4 className="font-bold text-lg text-slate-800">{order.userName}</h4>
-                <div className="text-sm text-slate-500">
-                  ID: {order.id} • {new Date(order.date).toLocaleDateString()} {new Date(order.date).toLocaleTimeString()}
-                  {order.deliveryMethod && (
-                    <span className="ml-2 inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-bold uppercase">
-                      {order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery'} • {order.deliveryTime?.split('T').join(' ')}
-                    </span>
-                  )}
+                <div className="flex items-center gap-3 mb-1">
+                  <h3 className="text-lg font-bold text-slate-800">#{order.id}</h3>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                    order.status === 'processing' ? 'bg-indigo-100 text-indigo-700' :
+                      order.status === 'cancelled' ? 'bg-slate-100 text-slate-500' :
+                        'bg-amber-100 text-amber-700'
+                    }`}>
+                    {order.status}
+                  </span>
+                </div>
+                <div className="text-sm text-slate-500 flex items-center gap-2">
+                  <span>{new Date(order.date).toLocaleString()}</span>
+                  <span>•</span>
+                  <span className="font-medium text-slate-700">{order.userName}</span>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-2xl font-bold text-indigo-600">${order.total.toFixed(2)}</div>
-
-                {/* Status Controls */}
-                <div className="flex items-center gap-4 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                  <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'pending')}>
-                    <div className={`w - 5 h - 5 rounded - full border flex items - center justify - center transition - colors ${order.status === 'pending' || order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} `}>
-                      {(order.status === 'pending' || order.status === 'processing' || order.status === 'completed') && <Check size={12} className="text-white" />}
-                    </div>
-                    <span className={`text - xs font - bold ${order.status === 'pending' ? 'text-indigo-600' : 'text-slate-500'} `}>New Order</span>
-                  </label>
-
-                  <div className={`h - 0.5 w - 8 ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'} `}></div>
-
-                  <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'processing')}>
-                    <div className={`w - 5 h - 5 rounded - full border flex items - center justify - center transition - colors ${order.status === 'processing' || order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} `}>
-                      {(order.status === 'processing' || order.status === 'completed') && <Check size={12} className="text-white" />}
-                    </div>
-                    <span className={`text - xs font - bold ${order.status === 'processing' ? 'text-indigo-600' : 'text-slate-500'} `}>Processing</span>
-                  </label>
-
-                  <div className={`h - 0.5 w - 8 ${order.status === 'completed' ? 'bg-indigo-600' : 'bg-slate-200'} `}></div>
-
-                  <label className="flex items-center gap-2 cursor-pointer" onClick={() => updateOrderStatus(order.id, 'completed')}>
-                    <div className={`w - 5 h - 5 rounded - full border flex items - center justify - center transition - colors ${order.status === 'completed' ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} `}>
-                      {order.status === 'completed' && <Check size={12} className="text-white" />}
-                    </div>
-                    <span className={`text - xs font - bold ${order.status === 'completed' ? 'text-indigo-600' : 'text-slate-500'} `}>Completed</span>
-                  </label>
-                </div>
-                <div className="flex gap-2 justify-end mt-2">
-                  <button
-                    onClick={() => generatePDF(order)}
-                    className="text-sm bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg hover:bg-indigo-100 transition-colors font-bold"
-                  >
-                    Download PDF
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
-                        deleteOrder(order.id);
-                      }
-                    }}
-                    className="text-sm bg-red-50 text-red-600 px-3 py-1 rounded-lg hover:bg-red-100 transition-colors font-bold flex items-center gap-1"
-                  >
-                    <Trash2 size={14} /> Delete
-                  </button>
-                </div>
+                <div className="text-xs text-slate-400 font-medium uppercase tracking-wider">Total Amount</div>
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-slate-400 bg-slate-50 rounded-lg">
-                  <tr>
-                    <th className="p-2 font-medium pl-4">Image</th>
-                    <th className="p-2 font-medium">Product Details</th>
-                    <th className="p-2 font-medium">Department</th>
-                    <th className="p-2 font-medium text-center">Tax</th>
-                    <th className="p-2 font-medium text-right">Qty</th>
-                    <th className="p-2 font-medium text-right">Price</th>
-                    <th className="p-2 font-medium text-right pr-4">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...order.items]
-                    .sort((a, b) => (a.department || '').localeCompare(b.department || ''))
-                    .map((item, idx) => {
-                      // Fallback logic for UI display
-                      let displayImage = item.imageUrl;
-                      let displayDept = item.department;
-                      let displayTax = item.taxable;
-                      let productExists = true;
-
-                      if (!displayImage || !displayDept || displayTax === undefined) {
-                        const product = products.find(p => p.nameCN === item.productNameCN);
-                        if (product) {
-                          if (!displayImage) displayImage = product.imageUrl;
-                          if (!displayDept) displayDept = product.department;
-                          if (displayTax === undefined) displayTax = product.taxable;
-                        } else {
-                          // Product not found in current inventory
-                          if (!displayImage) productExists = false;
-                        }
-                      }
-
-                      return (
-                        <tr key={idx} className="border-b border-slate-50 last:border-0">
-                          <td className="p-2 pl-4">
-                            <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center text-center">
-                              {productExists && displayImage ? (
-                                <img src={displayImage} alt="Product" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-[10px] text-slate-400 leading-tight p-1">
-                                  图片已无或商品已失效
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-2">
-                            <div className="text-slate-800 font-medium">{item.productNameCN}</div>
-                            <div className="text-xs text-slate-500">{item.productNameFR}</div>
-                            {item.addedByAdmin && (
-                              <span className="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded mt-1">
-                                Admin Added / 后加
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-2 text-slate-600 text-xs">
-                            {displayDept}
-                          </td>
-                          <td className="p-2 text-center">
-                            {displayTax ? (
-                              <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-bold">Tax</span>
-                            ) : (
-                              <span className="text-slate-300">-</span>
-                            )}
-                          </td>
-                          <td className="p-2 text-right font-mono">
-                            {item.quantity} <span className="text-xs text-slate-400">{item.isCase ? 'cs' : 'un'}</span>
-                          </td>
-                          <td className="p-2 text-right font-mono text-slate-600">
-                            ${item.unitPrice.toFixed(2)}
-                          </td>
-                          <td className="p-2 text-right font-mono font-bold text-slate-700 pr-4">
-                            ${item.totalLine.toFixed(2)}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end gap-4 text-sm">
-              <div className="text-right space-y-1">
-                <div className="text-slate-500">Subtotal: <span className="font-mono font-bold text-slate-700">${order.subTotal.toFixed(2)}</span></div>
-                <div className="text-slate-500">TPS (5%): <span className="font-mono font-bold text-slate-700">${order.taxTPS.toFixed(2)}</span></div>
-                <div className="text-slate-500">TVQ (9.975%): <span className="font-mono font-bold text-slate-700">${order.taxTVQ.toFixed(2)}</span></div>
-                <div className="text-lg font-bold text-indigo-600 mt-2">Total: ${order.total.toFixed(2)}</div>
+            {/* Order Details Preview */}
+            <div className="bg-slate-50 rounded-xl p-4 mb-6">
+              <div className="space-y-2">
+                {order.items.slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <span className="text-slate-600">
+                      <span className="font-bold text-slate-800">{item.quantity}x</span> {item.productNameCN}
+                      {item.isCase && <span className="text-xs text-indigo-600 ml-1 font-bold">CASE</span>}
+                    </span>
+                    <span className="text-slate-500">${item.totalLine.toFixed(2)}</span>
+                  </div>
+                ))}
+                {order.items.length > 3 && (
+                  <div className="text-xs text-slate-400 font-medium pt-2 border-t border-slate-200">
+                    + {order.items.length - 3} more items
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="mt-4 flex justify-end">
+            <div className="flex flex-wrap gap-3">
+              <select
+                className="text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 font-medium text-slate-600 focus:outline-none focus:border-indigo-500"
+                value={order.status}
+                onChange={(e) => updateOrderStatus(order.id, e.target.value as any)}
+              >
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+
+              <button
+                onClick={() => generatePDF(order)}
+                className="text-sm bg-slate-100 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-200 transition-colors font-bold flex items-center gap-2"
+              >
+                <FileText size={16} />
+                PDF
+              </button>
+
+              <button
+                onClick={() => setInvoicingOrder(order)}
+                className="text-sm bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors font-bold shadow-md shadow-emerald-200 flex items-center gap-2"
+              >
+                <FileText size={16} />
+                Invoice
+              </button>
+
+              <div className="flex-1"></div>
+
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete this order?')) {
+                    deleteOrder(order.id);
+                  }
+                }}
+                className="text-sm text-rose-600 px-4 py-2 rounded-lg hover:bg-rose-50 transition-colors font-bold"
+              >
+                Delete
+              </button>
+
               <button
                 onClick={() => setEditingOrder(order)}
                 className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-bold shadow-md shadow-indigo-200"
@@ -1343,6 +1535,15 @@ const OrderHistoryManager: React.FC = () => {
             await updateOrderDetails(id, items, totals, discountRate);
             setEditingOrder(null);
           }}
+        />
+      )}
+
+      {invoicingOrder && (
+        <InvoiceModal
+          order={invoicingOrder}
+          companyInfo={companyInfo}
+          users={users}
+          onClose={() => setInvoicingOrder(null)}
         />
       )}
     </div>

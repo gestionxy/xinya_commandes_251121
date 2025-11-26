@@ -1467,19 +1467,19 @@ const OrderHistoryManager: React.FC = () => {
       const tax = item.taxable ? 'Tax' : '';
       const status = !item.productExists ? '(Deleted)' : '';
 
-      return [name + status, qty, price, tax, total];
+      return ['', name + status, qty, price, tax, total];
     });
 
     autoTable(doc, {
       startY: 60,
-      head: [['Item', 'Qty', 'Price', 'Tax', 'Total']],
+      head: [['Image', 'Item', 'Qty', 'Price', 'Tax', 'Total']],
       body: tableRows,
       didDrawCell: (data) => {
         if (data.section === 'body' && data.column.index === 0) {
           const item = itemsWithImages[data.row.index];
           if (item.imageData) {
             try {
-              // Increased image size from 10x10 to 20x20
+              // Image in dedicated column, size 20x20
               doc.addImage(item.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 20, 20);
             } catch (e) {
               // Ignore image errors
@@ -1487,9 +1487,10 @@ const OrderHistoryManager: React.FC = () => {
           }
         }
       },
-      styles: { minCellHeight: 25, valign: 'middle' }, // Increased minCellHeight to accommodate larger image
+      styles: { minCellHeight: 25, valign: 'middle' },
       columnStyles: {
-        0: { cellWidth: 80 } // Wider column for Item name + image
+        0: { cellWidth: 25 }, // Dedicated Image column
+        1: { cellWidth: 60 }  // Item name column
       }
     });
 

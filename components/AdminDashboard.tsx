@@ -7,7 +7,7 @@ import autoTable from 'jspdf-autotable';
 
 export const AdminDashboard: React.FC = () => {
   const { logout } = useStore();
-  const [activeTab, setActiveTab] = useState<'clients' | 'products' | 'orders' | 'company'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'products' | 'orders' | 'company'>('orders');
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-800 font-sans">
@@ -706,12 +706,12 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
 
     // Sold To (Client Profile)
     soldToName: client?.name || order.userName || '',
-    soldToAddress: client?.address || '',
+    soldToAddress: (client?.address || '').replace(/;/g, '\n'),
     soldToPhone: client?.phone || '',
 
     // Ship To (Delivery Info)
     shipToName: client?.name || order.userName || '',
-    shipToAddress: order.deliveryMethod === 'delivery' ? (client?.deliveryAddress || client?.address || '') : 'Pickup',
+    shipToAddress: (order.deliveryMethod === 'delivery' ? (client?.deliveryAddress || client?.address || '') : 'Pickup').replace(/;/g, '\n'),
     shipToPhone: client?.phone || ''
   });
 
@@ -763,8 +763,8 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     doc.setTextColor(0);
     doc.text(invoiceData.soldToName, 20, yPos + 6);
 
-    // Split address by semicolon for manual line breaks, then wrap if needed
-    const soldAddressParts = invoiceData.soldToAddress.split(';').map(part => part.trim()).filter(part => part);
+    // Split address by newline or semicolon for manual line breaks, then wrap if needed
+    const soldAddressParts = invoiceData.soldToAddress.split(/[\n;]/).map(part => part.trim()).filter(part => part);
     let currentY = yPos + 12;
     soldAddressParts.forEach(part => {
       const lines = doc.splitTextToSize(part, 80);
@@ -782,7 +782,7 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     doc.setTextColor(0);
     doc.text(invoiceData.shipToName, pageWidth / 2 + 10, yPos + 6);
 
-    const shipAddressParts = invoiceData.shipToAddress.split(';').map(part => part.trim()).filter(part => part);
+    const shipAddressParts = invoiceData.shipToAddress.split(/[\n;]/).map(part => part.trim()).filter(part => part);
     currentY = yPos + 12;
     shipAddressParts.forEach(part => {
       const lines = doc.splitTextToSize(part, 80);

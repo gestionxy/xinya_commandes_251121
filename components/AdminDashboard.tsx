@@ -1479,18 +1479,18 @@ const OrderHistoryManager: React.FC = () => {
           const item = itemsWithImages[data.row.index];
           if (item.imageData) {
             try {
-              // Image in dedicated column, size 20x20
-              doc.addImage(item.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 20, 20);
+              // Image in dedicated column, size 35x35
+              doc.addImage(item.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 35);
             } catch (e) {
               // Ignore image errors
             }
           }
         }
       },
-      styles: { minCellHeight: 25, valign: 'middle' },
+      styles: { minCellHeight: 40, valign: 'middle' },
       columnStyles: {
-        0: { cellWidth: 25 }, // Dedicated Image column
-        1: { cellWidth: 60 }  // Item name column
+        0: { cellWidth: 40 }, // Dedicated Image column
+        1: { cellWidth: 50 }  // Item name column
       }
     });
 
@@ -1639,7 +1639,7 @@ const OrderHistoryManager: React.FC = () => {
                       return (
                         <tr key={idx} className="border-b border-slate-50 last:border-0">
                           <td className="p-2 pl-4">
-                            <div className="w-12 h-12 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center text-center">
+                            <div className="w-24 h-24 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center text-center">
                               {productExists && displayImage ? (
                                 <img src={displayImage} alt="Product" className="w-full h-full object-cover" />
                               ) : (

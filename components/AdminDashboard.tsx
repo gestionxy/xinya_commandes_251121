@@ -1093,7 +1093,7 @@ interface OrderItem {
 
 // --- Edit Order Modal ---
 const EditOrderModal: React.FC<{ order: Order; onClose: () => void }> = ({ order, onClose }) => {
-  const { products, updateOrder, users } = useStore();
+  const { products, updateOrderDetails, users } = useStore();
   const [items, setItems] = useState<OrderItem[]>(order.items);
   // Initialize discount rate: use order's rate if valid (< 1), otherwise try to find client's current rate
   const [discountRate, setDiscountRate] = useState<number>(() => {

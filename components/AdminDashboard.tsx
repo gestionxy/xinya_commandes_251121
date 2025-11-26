@@ -800,7 +800,7 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     const tableStartY = Math.max(soldToEndY, shipToEndY) + 10;
 
     const tableRows = order.items.map((item, index) => {
-      const description = item.productNameFR || item.productNameCN || 'Item';
+      const description = item.productNameCN || item.productNameFR || 'Item';
       const unit = item.isCase ? 'Case' : 'Unit';
       // item.unitPrice is now the ORIGINAL price
       const discountText = (!item.isSpecialPrice && (order.discountRate || 1) < 1)
@@ -1006,7 +1006,7 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
                       <tr key={index} className="hover:bg-slate-50">
                         <td className="px-4 py-3 text-slate-400">{index + 1}</td>
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-800">{item.productNameFR || item.productNameCN}</div>
+                          <div className="font-medium text-slate-800">{item.productNameCN || item.productNameFR}</div>
                           {item.isSpecialPrice && <div className="text-xs text-amber-600 font-medium">* Prix Special</div>}
                         </td>
                         <td className="px-4 py-3 text-slate-600">

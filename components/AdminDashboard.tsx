@@ -203,9 +203,16 @@ const ProductManager: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeDept, setActiveDept] = useState('All');
   const [sortBy, setSortBy] = useState<'price' | 'name'>('price');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Filter & Sort
-  const filteredProducts = products.filter(p => activeDept === 'All' || p.department === activeDept);
+  const filteredProducts = products.filter(p => {
+    const matchesDept = activeDept === 'All' || p.department === activeDept;
+    const matchesSearch = searchQuery === '' ||
+      p.nameCN.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.nameFR.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesDept && matchesSearch;
+  });
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     if (sortBy === 'name') {
@@ -301,22 +308,40 @@ const ProductManager: React.FC = () => {
 
       {/* Filters & Sort Controls */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setActiveDept('All')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${activeDept === 'All' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-          >
-            All
-          </button>
-          {DEPARTMENTS.map(dept => (
+        <div className="flex flex-col gap-4 w-full md:w-auto">
+          {/* Search Bar */}
+          <div className="relative w-full md:w-80">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 outline-none transition-all"
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             <button
-              key={dept}
-              onClick={() => setActiveDept(dept)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${activeDept === dept ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              onClick={() => setActiveDept('All')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${activeDept === 'All' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
             >
-              {dept}
+              All
             </button>
-          ))}
+            {DEPARTMENTS.map(dept => (
+              <button
+                key={dept}
+                onClick={() => setActiveDept(dept)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${activeDept === dept ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+              >
+                {dept}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center gap-2 min-w-[200px]">

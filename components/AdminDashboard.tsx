@@ -1388,15 +1388,16 @@ const OrderHistoryManager: React.FC = () => {
   const sanitizeForPdf = (str: string) => {
     // 1. Replace common full-width characters with ASCII equivalents
     let s = str
-      .replace(/（/g, '(')
-      .replace(/）/g, ')')
-      .replace(/，/g, ',')
-      .replace(/：/g, ':')
-      .replace(/；/g, ';')
-      .replace(/“/g, '"')
-      .replace(/”/g, '"')
-      .replace(/‘/g, "'")
-      .replace(/’/g, "'");
+      .replace(/\uFF08/g, '(')  // （
+      .replace(/\uFF09/g, ')')  // ）
+      .replace(/\u3002/g, '.')  // 。
+      .replace(/\uFF0C/g, ',')  // ，
+      .replace(/\uFF1A/g, ':')  // ：
+      .replace(/\uFF1B/g, ';')  // ；
+      .replace(/\u201C/g, '"')  // “
+      .replace(/\u201D/g, '"')  // ”
+      .replace(/\u2018/g, "'")  // ‘
+      .replace(/\u2019/g, "'"); // ’
 
     // 2. Remove remaining non-Latin-1 characters to prevent garbage
     // Note: This means actual Chinese characters will be removed, but punctuation will be fixed.

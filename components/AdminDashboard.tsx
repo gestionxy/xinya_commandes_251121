@@ -816,14 +816,47 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
         const discountAmount = originalSubTotal - order.subTotal;
         const footerRows = [];
 
-        footerRows.push(['', '', '', '', 'Prix Original:', `$${originalSubTotal.toFixed(2)}`]);
+        // Use colSpan to give labels more space (merging columns 3 and 4)
+        // Columns: 0(No), 1(Desc), 2(Qty), 3(Price), 4(Disc), 5(Total)
+        // We merge 0-2 (3 cols) for empty space, then 3-4 (2 cols) for Label, then 5 for Value
+
+        footerRows.push([
+          { content: '', colSpan: 3, styles: { cellWidth: 'auto' } },
+          { content: 'Prix Original:', colSpan: 2, styles: { halign: 'right' } },
+          `$${originalSubTotal.toFixed(2)}`
+        ]);
+
         if (discountAmount > 0.01) {
-          footerRows.push(['', '', '', '', 'Rabais:', `-$${discountAmount.toFixed(2)}`]);
+          footerRows.push([
+            { content: '', colSpan: 3 },
+            { content: 'Rabais:', colSpan: 2, styles: { halign: 'right', textColor: [220, 38, 38] } }, // Red color for discount
+            `-$${discountAmount.toFixed(2)}`
+          ]);
         }
-        footerRows.push(['', '', '', '', 'Sous-total:', `$${order.subTotal.toFixed(2)}`]);
-        footerRows.push(['', '', '', '', 'TPS (5%):', `$${order.taxTPS.toFixed(2)}`]);
-        footerRows.push(['', '', '', '', 'TVQ (9.975%):', `$${order.taxTVQ.toFixed(2)}`]);
-        footerRows.push(['', '', '', '', 'Total:', `$${order.total.toFixed(2)}`]);
+
+        footerRows.push([
+          { content: '', colSpan: 3 },
+          { content: 'Sous-total:', colSpan: 2, styles: { halign: 'right' } },
+          `$${order.subTotal.toFixed(2)}`
+        ]);
+
+        footerRows.push([
+          { content: '', colSpan: 3 },
+          { content: 'TPS (5%):', colSpan: 2, styles: { halign: 'right' } },
+          `$${order.taxTPS.toFixed(2)}`
+        ]);
+
+        footerRows.push([
+          { content: '', colSpan: 3 },
+          { content: 'TVQ (9.975%):', colSpan: 2, styles: { halign: 'right' } },
+          `$${order.taxTVQ.toFixed(2)}`
+        ]);
+
+        footerRows.push([
+          { content: '', colSpan: 3 },
+          { content: 'Total:', colSpan: 2, styles: { halign: 'right', fontSize: 12 } },
+          { content: `$${order.total.toFixed(2)}`, styles: { fontSize: 12, textColor: [79, 70, 229] } }
+        ]);
 
         return footerRows;
       })(),

@@ -782,7 +782,7 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     const tableRows = order.items.map((item, index) => {
       const description = item.productNameFR || item.productNameCN || 'Item';
       const unit = item.isCase ? 'Case' : 'Unit';
-      const price = item.isSpecialPrice ? item.unitPrice : (item.unitPrice * (order.discountRate || 1));
+      // item.unitPrice is now the ORIGINAL price
       const discountText = (!item.isSpecialPrice && (order.discountRate || 1) < 1)
         ? `-${((1 - (order.discountRate || 1)) * 100).toFixed(0)}%`
         : '';
@@ -811,12 +811,22 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
         4: { cellWidth: 20, halign: 'center' },
         5: { cellWidth: 30, halign: 'right' }
       },
-      foot: [
-        ['', '', '', '', 'Sous-total:', `$${order.subTotal.toFixed(2)}`],
-        ['', '', '', '', 'TPS (5%):', `$${order.taxTPS.toFixed(2)}`],
-        ['', '', '', '', 'TVQ (9.975%):', `$${order.taxTVQ.toFixed(2)}`],
-        ['', '', '', '', 'Total:', `$${order.total.toFixed(2)}`]
-      ],
+      foot: (() => {
+        const originalSubTotal = order.items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
+        const discountAmount = originalSubTotal - order.subTotal;
+        const footerRows = [];
+
+        footerRows.push(['', '', '', '', 'Prix Original:', `$${originalSubTotal.toFixed(2)}`]);
+        if (discountAmount > 0.01) {
+          footerRows.push(['', '', '', '', 'Rabais:', `-$${discountAmount.toFixed(2)}`]);
+        }
+        footerRows.push(['', '', '', '', 'Sous-total:', `$${order.subTotal.toFixed(2)}`]);
+        footerRows.push(['', '', '', '', 'TPS (5%):', `$${order.taxTPS.toFixed(2)}`]);
+        footerRows.push(['', '', '', '', 'TVQ (9.975%):', `$${order.taxTVQ.toFixed(2)}`]);
+        footerRows.push(['', '', '', '', 'Total:', `$${order.total.toFixed(2)}`]);
+
+        return footerRows;
+      })(),
       footStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'right' },
       didDrawPage: (data) => {
         // Footer Note
@@ -958,10 +968,40 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
                     ))}
                   </tbody>
                   <tfoot className="bg-slate-50 font-bold text-slate-800">
-                    <tr>
-                      <td colSpan={5} className="px-4 py-3 text-right">Total:</td>
-                      <td className="px-4 py-3 text-right text-indigo-600">${order.total.toFixed(2)}</td>
-                    </tr>
+                    {(() => {
+                      const originalSubTotal = order.items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
+                      const discountAmount = originalSubTotal - order.subTotal;
+                      return (
+                        <>
+                          <tr>
+                            <td colSpan={5} className="px-4 py-1 text-right text-slate-500 font-normal">Prix Original:</td>
+                            <td className="px-4 py-1 text-right text-slate-500 font-normal">${originalSubTotal.toFixed(2)}</td>
+                          </tr>
+                          {discountAmount > 0.01 && (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-1 text-right text-emerald-600 font-normal">Rabais:</td>
+                              <td className="px-4 py-1 text-right text-emerald-600 font-normal">-${discountAmount.toFixed(2)}</td>
+                            </tr>
+                          )}
+                          <tr>
+                            <td colSpan={5} className="px-4 py-1 text-right text-slate-600">Sous-total:</td>
+                            <td className="px-4 py-1 text-right text-slate-600">${order.subTotal.toFixed(2)}</td>
+                          </tr>
+                          <tr>
+                            <td colSpan={5} className="px-4 py-1 text-right text-slate-400 font-normal">TPS (5%):</td>
+                            <td className="px-4 py-1 text-right text-slate-400 font-normal">${order.taxTPS.toFixed(2)}</td>
+                          </tr>
+                          <tr>
+                            <td colSpan={5} className="px-4 py-1 text-right text-slate-400 font-normal">TVQ (9.975%):</td>
+                            <td className="px-4 py-1 text-right text-slate-400 font-normal">${order.taxTVQ.toFixed(2)}</td>
+                          </tr>
+                          <tr className="border-t border-slate-200">
+                            <td colSpan={5} className="px-4 py-3 text-right text-lg">Total:</td>
+                            <td className="px-4 py-3 text-right text-indigo-600 text-lg">${order.total.toFixed(2)}</td>
+                          </tr>
+                        </>
+                      );
+                    })()}
                   </tfoot>
                 </table>
               </div>
@@ -1511,7 +1551,8 @@ const OrderHistoryManager: React.FC = () => {
                     <th className="p-2 font-medium">Department</th>
                     <th className="p-2 font-medium text-center">Tax</th>
                     <th className="p-2 font-medium text-right">Qty</th>
-                    <th className="p-2 font-medium text-right">Price</th>
+                    <th className="p-2 font-medium text-right">Prix (Orig.)</th>
+                    <th className="p-2 font-medium text-center">Disc.</th>
                     <th className="p-2 font-medium text-right pr-4">Total</th>
                   </tr>
                 </thead>
@@ -1537,6 +1578,9 @@ const OrderHistoryManager: React.FC = () => {
                         }
                       }
 
+                      const discountRate = order.discountRate || 1;
+                      const isDiscounted = !item.isSpecialPrice && discountRate < 1;
+
                       return (
                         <tr key={idx} className="border-b border-slate-50 last:border-0">
                           <td className="p-2 pl-4">
@@ -1558,6 +1602,11 @@ const OrderHistoryManager: React.FC = () => {
                                 Admin Added / 后加
                               </span>
                             )}
+                            {item.isSpecialPrice && (
+                              <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[10px] font-bold rounded mt-1 ml-1">
+                                Special Price *
+                              </span>
+                            )}
                           </td>
                           <td className="p-2 text-slate-600 text-xs">
                             {displayDept}
@@ -1575,6 +1624,9 @@ const OrderHistoryManager: React.FC = () => {
                           <td className="p-2 text-right font-mono text-slate-600">
                             ${item.unitPrice.toFixed(2)}
                           </td>
+                          <td className="p-2 text-center font-mono text-emerald-600 font-bold text-xs">
+                            {isDiscounted ? `-${((1 - discountRate) * 100).toFixed(0)}%` : '-'}
+                          </td>
                           <td className="p-2 text-right font-mono font-bold text-slate-700 pr-4">
                             ${item.totalLine.toFixed(2)}
                           </td>
@@ -1587,7 +1639,22 @@ const OrderHistoryManager: React.FC = () => {
 
             <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end gap-4 text-sm">
               <div className="text-right space-y-1">
-                <div className="text-slate-500">Subtotal: <span className="font-mono font-bold text-slate-700">${order.subTotal.toFixed(2)}</span></div>
+                {/* Calculate Original Subtotal for display */}
+                {(() => {
+                  const originalSubTotal = order.items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
+                  const discountAmount = originalSubTotal - order.subTotal;
+
+                  return (
+                    <>
+                      <div className="text-slate-500">Original Price: <span className="font-mono font-bold text-slate-700">${originalSubTotal.toFixed(2)}</span></div>
+                      {discountAmount > 0.01 && (
+                        <div className="text-emerald-600">Discount: <span className="font-mono font-bold">-${discountAmount.toFixed(2)}</span></div>
+                      )}
+                      <div className="text-slate-500 pt-1 border-t border-slate-100 mt-1">Subtotal (Net): <span className="font-mono font-bold text-slate-700">${order.subTotal.toFixed(2)}</span></div>
+                    </>
+                  );
+                })()}
+
                 <div className="text-slate-500">TPS (5%): <span className="font-mono font-bold text-slate-700">${order.taxTPS.toFixed(2)}</span></div>
                 <div className="text-slate-500">TVQ (9.975%): <span className="font-mono font-bold text-slate-700">${order.taxTVQ.toFixed(2)}</span></div>
                 <div className="text-lg font-bold text-indigo-600 mt-2">Total: ${order.total.toFixed(2)}</div>

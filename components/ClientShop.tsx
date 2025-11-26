@@ -327,8 +327,8 @@ export const ClientShop: React.FC<{ isGuest: boolean, onExitGuest: () => void }>
 };
 
 const ProductCard: React.FC<{ product: Product, cart: CartItem[], onAdd: any, discount: number }> = ({ product, cart, onAdd, discount }) => {
-  const unitPrice = product.priceUnit * discount;
-  const casePrice = product.priceCase * discount;
+  const unitPrice = product.priceUnit;
+  const casePrice = product.priceCase;
 
   // Find quantity in cart
   const unitItem = cart.find(i => i.productId === product.id && !i.isCase);
@@ -351,7 +351,7 @@ const ProductCard: React.FC<{ product: Product, cart: CartItem[], onAdd: any, di
         )}
         {discount < 1 && (
           <div className="absolute top-2 left-2 bg-rose-500 text-white text-[10px] font-bold px-2 py-1 rounded-md shadow-sm">
-            SAVINGS
+            -{((1 - discount) * 100).toFixed(0)}% OFF
           </div>
         )}
 

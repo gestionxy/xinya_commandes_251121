@@ -250,9 +250,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const product = products.find(p => p.id === item.productId);
       if (!product) return null;
 
+      // Store ORIGINAL price
       const basePrice = item.isCase ? product.priceCase : product.priceUnit;
-      const discountedPrice = basePrice * discountRate;
-      const lineTotal = discountedPrice * item.quantity;
+
+      // Determine if special price (no discount) or regular (apply discount)
+      // For now, we don't have a flag on the product itself for "special price" in the types, 
+      // but the requirement implies we might set it manually or it's a property we need to respect if added.
+      // The user said "noting special prices with *", usually set by Admin. 
+      // But for new orders from client, we assume standard discount applies unless product is excluded.
+      // Since we don't have 'isSpecial' on Product yet, we assume all are subject to discount for now,
+      // OR we can check if the user has a discount.
+
+      const isSpecialPrice = false; // Default for new orders, admin can toggle later
+      const appliedDiscount = isSpecialPrice ? 1 : discountRate;
+
+      const lineTotal = basePrice * item.quantity * appliedDiscount;
 
       subTotal += lineTotal;
 
@@ -265,12 +277,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         productNameCN: product.nameCN,
         productNameFR: product.nameFR,
         quantity: item.quantity,
-        unitPrice: discountedPrice,
+        unitPrice: basePrice, // STORE ORIGINAL PRICE
         isCase: item.isCase,
-        totalLine: lineTotal,
+        totalLine: lineTotal, // STORE DISCOUNTED TOTAL
         imageUrl: product.imageUrl,
         department: product.department,
-        taxable: product.taxable
+        taxable: product.taxable,
+        isSpecialPrice: isSpecialPrice
       };
     }).filter((item): item is NonNullable<typeof item> => item !== null);
 
@@ -289,7 +302,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       date: new Date().toISOString(),
       items: orderItems,
       subTotal,
-      discountAmount: 0,
+      discountRate: discountRate, // Store the rate used
+      discountAmount: 0, // We can calculate this dynamically or store it. Let's leave 0 for now as it's derivative.
       taxTPS: tpsTotal,
       taxTVQ: tvqTotal,
       total: total,

@@ -1077,10 +1077,18 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
 };
 
 // --- Edit Order Modal ---
-const EditOrderModal: React.FC<{ order: Order, products: Product[], clientDiscountRate: number, onClose: () => void, onSave: (id: string, items: any[], totals: any, discountRate: number) => void }> = ({ order, products, clientDiscountRate, onClose, onSave }) => {
-  const [items, setItems] = useState([...order.items]);
-  // Use order's saved rate if exists, otherwise use client's default rate
-  const [discountRate, setDiscountRate] = useState<number>(order.discountRate || clientDiscountRate || 1.0);
+const EditOrderModal: React.FC<{ order: Order; onClose: () => void }> = ({ order, onClose }) => {
+  const { products, updateOrder, users } = useStore();
+  const [items, setItems] = useState<OrderItem[]>(order.items);
+  // Initialize discount rate: use order's rate if valid (< 1), otherwise try to find client's current rate
+  const [discountRate, setDiscountRate] = useState<number>(() => {
+    if (order.discountRate && order.discountRate < 1) {
+      return order.discountRate;
+    }
+    // Fallback: try to find client's current discount rate
+    const client = users.find(u => u.id === order.userId || u.name === order.userName);
+    return client?.discountRate || 1;
+  });
   const [isAdding, setIsAdding] = useState(false);
   const [search, setSearch] = useState('');
 

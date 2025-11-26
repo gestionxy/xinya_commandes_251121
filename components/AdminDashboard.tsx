@@ -531,26 +531,28 @@ const ProductManager: React.FC = () => {
 
 // --- Edit Order Modal ---
 // --- Edit Order Modal ---
-const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () => void, onSave: (id: string, items: any[], totals: any, discountRate: number) => void }> = ({ order, products, onClose, onSave }) => {
+const EditOrderModal: React.FC<{ order: Order, products: Product[], clientDiscountRate: number, onClose: () => void, onSave: (id: string, items: any[], totals: any, discountRate: number) => void }> = ({ order, products, clientDiscountRate, onClose, onSave }) => {
   const [items, setItems] = useState([...order.items]);
-  const [discountRate, setDiscountRate] = useState<number>(order.discountRate || 1.0);
+  // Use order's saved rate if exists, otherwise use client's default rate
+  const [discountRate, setDiscountRate] = useState<number>(order.discountRate || clientDiscountRate || 1.0);
   const [isAdding, setIsAdding] = useState(false);
   const [search, setSearch] = useState('');
 
   // Calculate totals
   const calculateTotals = (currentItems: any[], currentDiscount: number) => {
+    let originalSubTotal = 0;
     let subTotal = 0;
     let tpsTotal = 0;
     let tvqTotal = 0;
 
     currentItems.forEach(item => {
+      const lineOriginalTotal = item.unitPrice * item.quantity;
+      originalSubTotal += lineOriginalTotal;
+
       // Calculate line total based on special price status
       // If special price, NO discount. If normal, apply discount.
       const effectivePrice = item.isSpecialPrice ? item.unitPrice : (item.unitPrice * currentDiscount);
       const lineTotal = effectivePrice * item.quantity;
-
-      // Update item's totalLine for display (though we don't mutate state here directly for render, we need it for totals)
-      // Note: In a real app we might want to separate display values from stored values better
 
       subTotal += lineTotal;
       if (item.taxable) {
@@ -560,6 +562,7 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () 
     });
 
     return {
+      originalSubTotal,
       subTotal,
       taxTPS: tpsTotal,
       taxTVQ: tvqTotal,
@@ -763,7 +766,20 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () 
           )}
 
           <div className="bg-slate-50 p-6 rounded-xl space-y-2">
-            <div className="flex justify-between text-slate-600"><span>Subtotal</span><span>${totals.subTotal.toFixed(2)}</span></div>
+            <div className="flex justify-between text-slate-500 text-sm">
+              <span>Original Price</span>
+              <span>${totals.originalSubTotal.toFixed(2)}</span>
+            </div>
+            {discountRate < 1 && (
+              <div className="flex justify-between text-emerald-600 text-sm font-bold">
+                <span>Discount ({((1 - discountRate) * 100).toFixed(0)}%)</span>
+                <span>-${(totals.originalSubTotal - totals.subTotal).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-slate-800 font-bold pt-2 border-t border-slate-200">
+              <span>Subtotal (After Discount)</span>
+              <span>${totals.subTotal.toFixed(2)}</span>
+            </div>
             <div className="flex justify-between text-slate-600"><span>TPS</span><span>${totals.taxTPS.toFixed(2)}</span></div>
             <div className="flex justify-between text-slate-600"><span>TVQ</span><span>${totals.taxTVQ.toFixed(2)}</span></div>
             <div className="flex justify-between text-xl font-bold text-indigo-600 pt-2 border-t border-slate-200"><span>Total</span><span>${totals.total.toFixed(2)}</span></div>
@@ -1164,6 +1180,7 @@ const OrderHistoryManager: React.FC = () => {
         <EditOrderModal
           order={editingOrder}
           products={products}
+          clientDiscountRate={users.find(u => u.id === editingOrder.userId)?.discountRate || 1.0}
           onClose={() => setEditingOrder(null)}
           onSave={async (id, items, totals, discountRate) => {
             await updateOrderDetails(id, items, totals, discountRate);

@@ -639,8 +639,8 @@ const OrderHistoryManager: React.FC = () => {
     }));
 
     const tableBody = itemsWithImages.map((item) => {
-      // Use FR name for PDF to avoid garbled Chinese
-      const nameDisplay = item.productNameFR || sanitizeForPdf(item.productNameCN);
+      // Use CN name for PDF as requested
+      const nameDisplay = item.productNameCN || item.productNameFR;
 
       return [
         '', // Image placeholder

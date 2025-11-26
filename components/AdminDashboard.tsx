@@ -629,7 +629,7 @@ const EditOrderModal: React.FC<{ order: Order, products: Product[], onClose: () 
 
                 <div className="flex items-center gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase">Qty</label>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase">Qty ({item.isCase ? 'Case' : 'Unit'})</label>
                     <input
                       type="number"
                       min="1"

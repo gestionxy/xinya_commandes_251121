@@ -1076,6 +1076,21 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
   );
 };
 
+// Define OrderItem locally since it's not exported from types
+interface OrderItem {
+  productNameCN: string;
+  productNameFR: string;
+  quantity: number;
+  unitPrice: number;
+  isCase: boolean;
+  totalLine: number;
+  imageUrl?: string;
+  department?: string;
+  taxable?: boolean;
+  addedByAdmin?: boolean;
+  isSpecialPrice?: boolean;
+}
+
 // --- Edit Order Modal ---
 const EditOrderModal: React.FC<{ order: Order; onClose: () => void }> = ({ order, onClose }) => {
   const { products, updateOrder, users } = useStore();
@@ -1362,13 +1377,19 @@ const OrderHistoryManager: React.FC = () => {
   const filteredOrders = orders.filter(o => filterClient === 'all' || o.userId === filterClient);
   const sortedOrders = [...filteredOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Helper to convert image URL to Base64
+  // Helper to convert image URL to Base64 with timeout
   const getDataUrl = (url: string): Promise<string | null> => {
     return new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'Anonymous';
-      img.src = url;
+
+      const timeout = setTimeout(() => {
+        console.warn('Image load timed out:', url);
+        resolve(createPlaceholderImage());
+      }, 5000); // 5 second timeout
+
       img.onload = () => {
+        clearTimeout(timeout);
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
@@ -1379,23 +1400,47 @@ const OrderHistoryManager: React.FC = () => {
             resolve(canvas.toDataURL('image/jpeg'));
           } catch (e) {
             console.error('Canvas toDataURL failed', e);
-            resolve(null);
+            resolve(createPlaceholderImage());
           }
         } else {
-          resolve(null);
+          resolve(createPlaceholderImage());
         }
       };
+
       img.onerror = () => {
+        clearTimeout(timeout);
         console.error('Image load failed', url);
-        resolve(null);
+        resolve(createPlaceholderImage());
       };
+
+      img.src = url;
     });
   };
 
+  // Helper to create a placeholder image
+  const createPlaceholderImage = (): string => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 100;
+    canvas.height = 100;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#f1f5f9'; // slate-100
+      ctx.fillRect(0, 0, 100, 100);
+      ctx.fillStyle = '#94a3b8'; // slate-400
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('No Image', 50, 50);
+      return canvas.toDataURL('image/jpeg');
+    }
+    return ''; // Should not happen
+  };
+
   // Helper to sanitize text for PDF
-  const sanitizeForPdf = (str: string) => {
+  const sanitizeForPdf = (str: string | undefined | null) => {
+    if (!str) return '';
     // 1. Replace common full-width characters with ASCII equivalents
-    let s = str
+    let s = String(str)
       .replace(/\uFF08/g, '(')  // （
       .replace(/\uFF09/g, ')')  // ）
       .replace(/\u3002/g, '.')  // 。
@@ -1768,13 +1813,7 @@ const OrderHistoryManager: React.FC = () => {
       {editingOrder && (
         <EditOrderModal
           order={editingOrder}
-          products={products}
-          clientDiscountRate={users.find(u => u.id === editingOrder.userId)?.discountRate || 1.0}
           onClose={() => setEditingOrder(null)}
-          onSave={async (id, items, totals, discountRate) => {
-            await updateOrderDetails(id, items, totals, discountRate);
-            setEditingOrder(null);
-          }}
         />
       )}
 

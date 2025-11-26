@@ -363,6 +363,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateUser = async (updatedUser: User) => {
     if (isSupabaseConfigured && supabase) {
       await supabase.from('profiles').update({
+        company_name: updatedUser.name, // Update company name
         phone: updatedUser.phone,
         address: updatedUser.address,
         delivery_address: updatedUser.deliveryAddress,

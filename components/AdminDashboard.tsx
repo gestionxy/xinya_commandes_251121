@@ -70,8 +70,8 @@ export const AdminDashboard: React.FC = () => {
 const SidebarItem: React.FC<{ icon: any, label: string, active: boolean, onClick: () => void, badge?: number }> = ({ icon, label, active, onClick, badge }) => (
   <button
     onClick={onClick}
-    className={`w - full flex items - center gap - 3 px - 4 py - 3 rounded - xl transition - all font - medium relative ${active ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-      } `}
+    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium relative ${active ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+      }`}
   >
     {icon}
     {label}
@@ -1241,14 +1241,14 @@ const BulkUploadModal: React.FC<{ onClose: () => void, onImport: (excel: File, z
               <button
                 onClick={handleImport}
                 disabled={!excelFile || isUploading}
-                className={`w - full font - bold py - 3 rounded - xl shadow - lg transition - all ${!excelFile || isUploading ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'} `}
+                className={`w-full font-bold py-3 rounded-xl shadow-lg transition-all ${!excelFile || isUploading ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'}`}
               >
                 {isUploading ? 'Processing...' : 'Start Import'}
               </button>
             </>
           ) : (
             <div className="text-center space-y-4">
-              <div className={`text - xl font - bold ${result.failed === 0 ? 'text-emerald-600' : 'text-amber-600'} `}>
+              <div className={`text-xl font-bold ${result.failed === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
                 Import Completed
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1281,14 +1281,14 @@ const BulkUploadModal: React.FC<{ onClose: () => void, onImport: (excel: File, z
 
 // CSS Utility
 const styles = `
-  .form - label {
-  @apply block text - xs font - bold text - slate - 500 mb - 1 uppercase;
+  .form-label {
+  @apply block text-xs font-bold text-slate-500 mb-1 uppercase;
 }
-            .form - input {
-  @apply w - full bg - slate - 50 border border - slate - 200 p - 2.5 rounded - xl focus: border - indigo - 500 focus: ring - 1 focus: ring - indigo - 500 outline - none transition - all;
+            .form-input {
+  @apply w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all;
 }
-            .animate - fade -in {
-  animation: fadeIn 0.3s ease- out;
+            .animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
   }
 @keyframes fadeIn {
               from { opacity: 0; transform: translateY(10px); }

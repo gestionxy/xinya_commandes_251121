@@ -882,7 +882,7 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
         const pageHeight = doc.internal.pageSize.height;
         doc.setFontSize(8);
         doc.setTextColor(150);
-        doc.text("* Prix Special: Cet article n'est pas soumis au rabais global.", 20, pageHeight - 10);
+        doc.text("* Prix Spécial / Special Price: Non soumis au rabais / Excluded from discount.", 20, pageHeight - 10);
       }
     });
 

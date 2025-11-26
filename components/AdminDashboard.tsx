@@ -907,6 +907,18 @@ const OrderHistoryManager: React.FC = () => {
           <div className="text-center py-12 text-slate-400">No orders found</div>
         )}
       </div>
+
+      {editingOrder && (
+        <EditOrderModal
+          order={editingOrder}
+          products={products}
+          onClose={() => setEditingOrder(null)}
+          onSave={async (id, items, totals) => {
+            await updateOrderDetails(id, items, totals);
+            setEditingOrder(null);
+          }}
+        />
+      )}
     </div>
   );
 };

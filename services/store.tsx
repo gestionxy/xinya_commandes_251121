@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, Product, Order, CartItem, UserRole, TAX_RATES } from '../types';
+import { User, Product, Order, CartItem, UserRole, TAX_RATES, CompanyInfo } from '../types';
 import { INITIAL_ADMIN, INITIAL_CLIENTS, INITIAL_PRODUCTS } from './mockData';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { parseAndImport, BulkImportResult } from './bulkImport';
@@ -10,6 +10,7 @@ interface StoreContextType {
   products: Product[];
   orders: Order[];
   cart: CartItem[];
+  companyInfo: CompanyInfo | null;
   isLoading: boolean;
   login: (user: User) => void;
   logout: () => void;
@@ -20,6 +21,7 @@ interface StoreContextType {
   placeOrder: (deliveryMethod: string, deliveryTime: string) => Promise<void>;
   // Admin functions
   updateUser: (user: User) => Promise<void>;
+  updateCompanyInfo: (info: CompanyInfo) => Promise<void>;
   addProduct: (product: Product) => Promise<void>;
   updateProduct: (product: Product) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
@@ -50,19 +52,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const saved = localStorage.getItem('nova_products');
     return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
   });
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('nova_orders');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [orders, setOrders] = useState<Order[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
 
   // Load initial data from Supabase if configured
   useEffect(() => {
-    if (isSupabaseConfigured && supabase) {
-      const fetchData = async () => {
+    const fetchData = async () => {
+      if (!isSupabaseConfigured || !supabase) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
         setIsLoading(true);
+
+        // Fetch Company Info
+        const { data: companyData } = await supabase.from('company_info').select('*').single();
+        if (companyData) {
+          setCompanyInfo({
+            id: companyData.id,
+            name: companyData.name,
+            address: companyData.address || '',
+            postalCode: companyData.postal_code || '',
+            email: companyData.email || '',
+            phone: companyData.phone || '',
+            gst: companyData.gst || '',
+            qst: companyData.qst || ''
+          });
+        }
 
         // Fetch Products
         const { data: dbProducts } = await supabase.from('products').select('*');
@@ -299,6 +319,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Admin Actions
+  const updateCompanyInfo = async (info: CompanyInfo) => {
+    if (isSupabaseConfigured && supabase) {
+      const dataToUpsert = {
+        name: info.name,
+        address: info.address,
+        postal_code: info.postalCode,
+        email: info.email,
+        phone: info.phone,
+        gst: info.gst,
+        qst: info.qst
+      };
+
+      if (info.id) {
+        await supabase.from('company_info').update(dataToUpsert).eq('id', info.id);
+      } else {
+        const { data } = await supabase.from('company_info').insert([dataToUpsert]).select().single();
+        if (data) info.id = data.id;
+      }
+    }
+    setCompanyInfo(info);
+  };
+
   const updateUser = async (updatedUser: User) => {
     if (isSupabaseConfigured && supabase) {
       await supabase.from('profiles').update({
@@ -458,10 +500,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <StoreContext.Provider value={{
-      currentUser, users, products, orders, cart, isLoading,
+      currentUser, users, products, orders, cart, isLoading, companyInfo,
       login, logout, register,
       addToCart, removeFromCart, clearCart, placeOrder,
-      updateUser, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser, deleteOrder, updateOrderStatus, updateOrderDetails,
+      updateUser, updateCompanyInfo, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser, deleteOrder, updateOrderStatus, updateOrderDetails,
       bulkImportProducts
     }}>
       {children}

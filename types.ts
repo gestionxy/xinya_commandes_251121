@@ -76,3 +76,14 @@ export const TAX_RATES = {
   TPS: 0.05,
   TVQ: 0.09975
 };
+
+export interface CompanyInfo {
+  id?: string;
+  name: string;
+  address: string;
+  postalCode: string;
+  email: string;
+  phone: string;
+  gst: string;
+  qst: string;
+}

@@ -7,7 +7,7 @@ import autoTable from 'jspdf-autotable';
 
 export const AdminDashboard: React.FC = () => {
   const { logout } = useStore();
-  const [activeTab, setActiveTab] = useState<'clients' | 'products' | 'orders'>('clients');
+  const [activeTab, setActiveTab] = useState<'clients' | 'products' | 'orders' | 'company'>('clients');
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-800 font-sans">
@@ -27,8 +27,14 @@ export const AdminDashboard: React.FC = () => {
             onClick={() => setActiveTab('clients')}
           />
           <SidebarItem
+            icon={<FileText size={20} />}
+            label="Company Info"
+            active={activeTab === 'company'}
+            onClick={() => setActiveTab('company')}
+          />
+          <SidebarItem
             icon={<Package size={20} />}
-            label="Inventory"
+            label="Products"
             active={activeTab === 'products'}
             onClick={() => setActiveTab('products')}
           />
@@ -60,6 +66,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         {activeTab === 'clients' && <ClientManager />}
+        {activeTab === 'company' && <CompanyInfoManager />}
         {activeTab === 'products' && <ProductManager />}
         {activeTab === 'orders' && <OrderHistoryManager />}
       </main>
@@ -82,6 +89,156 @@ const SidebarItem: React.FC<{ icon: any, label: string, active: boolean, onClick
     )}
   </button>
 );
+
+// --- Company Info Manager ---
+const CompanyInfoManager: React.FC = () => {
+  const { companyInfo, updateCompanyInfo } = useStore();
+  const [formData, setFormData] = useState({
+    name: '',
+    address: '',
+    postalCode: '',
+    email: '',
+    phone: '',
+    gst: '',
+    qst: ''
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (companyInfo) {
+      setFormData({
+        name: companyInfo.name,
+        address: companyInfo.address,
+        postalCode: companyInfo.postalCode,
+        email: companyInfo.email,
+        phone: companyInfo.phone,
+        gst: companyInfo.gst,
+        qst: companyInfo.qst
+      });
+    }
+  }, [companyInfo]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setMessage('');
+    try {
+      await updateCompanyInfo({
+        id: companyInfo?.id,
+        ...formData
+      });
+      setMessage('Company information saved successfully!');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (error) {
+      console.error('Error saving company info:', error);
+      setMessage('Error saving information.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200 animate-fade-in">
+      <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+        <FileText className="text-indigo-600" />
+        Company Information / 公司信息
+      </h2>
+
+      {message && (
+        <div className={`p-4 rounded-lg mb-6 ${message.includes('Error') ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
+          {message}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className="form-label">Company Name / 公司名称</label>
+          <input
+            type="text"
+            required
+            className="form-input"
+            value={formData.name}
+            onChange={e => setFormData({ ...formData, name: e.target.value })}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="form-label">Address / 地址</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.address}
+              onChange={e => setFormData({ ...formData, address: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="form-label">Postal Code / 邮编</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.postalCode}
+              onChange={e => setFormData({ ...formData, postalCode: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="form-label">Email / 电子邮箱</label>
+            <input
+              type="email"
+              className="form-input"
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="form-label">Phone / 电话 (TELE)</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.phone}
+              onChange={e => setFormData({ ...formData, phone: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="form-label">GST Number</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.gst}
+              onChange={e => setFormData({ ...formData, gst: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="form-label">QST Number</label>
+            <input
+              type="text"
+              className="form-input"
+              value={formData.qst}
+              onChange={e => setFormData({ ...formData, qst: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="pt-4">
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 disabled:opacity-50"
+          >
+            {isSaving ? 'Saving...' : 'Save Information / 保存信息'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
 
 // --- Client Manager ---
 const ClientManager: React.FC = () => {

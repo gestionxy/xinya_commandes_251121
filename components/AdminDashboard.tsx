@@ -1409,7 +1409,7 @@ const OrderHistoryManager: React.FC = () => {
 
     // Header
     doc.setFontSize(20);
-    doc.text(`Order #${order.id} `, 14, 22);
+    doc.text(`Order ${order.id} `, 14, 22);
 
     doc.setFontSize(12);
     // Sanitize user name just in case
@@ -1479,14 +1479,15 @@ const OrderHistoryManager: React.FC = () => {
           const item = itemsWithImages[data.row.index];
           if (item.imageData) {
             try {
-              doc.addImage(item.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 10, 10);
+              // Increased image size from 10x10 to 20x20
+              doc.addImage(item.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 20, 20);
             } catch (e) {
               // Ignore image errors
             }
           }
         }
       },
-      styles: { minCellHeight: 15, valign: 'middle' },
+      styles: { minCellHeight: 25, valign: 'middle' }, // Increased minCellHeight to accommodate larger image
       columnStyles: {
         0: { cellWidth: 80 } // Wider column for Item name + image
       }
@@ -1522,7 +1523,7 @@ const OrderHistoryManager: React.FC = () => {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <div className="flex items-center gap-3 mb-1">
-                  <h3 className="text-lg font-bold text-slate-800">#{order.id}</h3>
+                  <h3 className="text-lg font-bold text-slate-800">{order.id}</h3>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
                     order.status === 'processing' ? 'bg-indigo-100 text-indigo-700' :
                       order.status === 'cancelled' ? 'bg-slate-100 text-slate-500' :

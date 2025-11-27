@@ -1593,7 +1593,9 @@ const OrderHistoryManager: React.FC = () => {
 
           // Calculate totals (these are order totals, not page totals)
           // We use the order object directly
-          const discountAmount = order.originalSubTotal - order.subTotal;
+          // Calculate original subtotal from items since it's not on the order object
+          const originalSubTotal = order.items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
+          const discountAmount = originalSubTotal - order.subTotal;
 
           // Helper to right align text
           const drawLine = (label: string, value: string, y: number, isBold: boolean = false, color: string = '#000000') => {
@@ -1606,7 +1608,7 @@ const OrderHistoryManager: React.FC = () => {
           let currentY = summaryY;
           const lineHeight = 5;
 
-          drawLine("Prix Original:", `$${order.originalSubTotal.toFixed(2)}`, currentY, true);
+          drawLine("Prix Original:", `$${originalSubTotal.toFixed(2)}`, currentY, true);
           currentY += lineHeight;
 
           if (discountAmount > 0.01) {

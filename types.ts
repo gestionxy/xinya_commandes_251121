@@ -52,6 +52,7 @@ export interface Order {
     taxable?: boolean;
     addedByAdmin?: boolean;
     isSpecialPrice?: boolean; // New field: if true, excludes from global discount
+    note?: string; // Packing slip note
   }[];
   subTotal: number;
   discountRate?: number; // New field: specific discount rate for this order

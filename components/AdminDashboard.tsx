@@ -1106,6 +1106,7 @@ interface OrderItem {
   taxable?: boolean;
   addedByAdmin?: boolean;
   isSpecialPrice?: boolean;
+  note?: string;
 }
 
 // --- Edit Order Modal ---
@@ -1407,6 +1408,341 @@ const EditOrderModal: React.FC<{ order: Order; onClose: () => void }> = ({ order
   );
 };
 
+// --- Packing Slip Modal ---
+const PackingSlipModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, users: User[], products: Product[], onClose: () => void }> = ({ order, companyInfo, users, products, onClose }) => {
+  const { updateOrderDetails } = useStore();
+  const client = users.find(u => u.id === order.userId);
+  const [items, setItems] = useState<OrderItem[]>(order.items);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Initial State from Props
+  const [invoiceData, setInvoiceData] = useState({
+    invoiceNumber: order.id,
+    invoiceDate: new Date().toISOString().split('T')[0],
+    orderDate: new Date(order.date).toISOString().split('T')[0],
+
+    // Admin Info (From Company Info)
+    adminName: companyInfo?.name || '',
+    adminAddress: companyInfo?.address || '',
+    adminPhone: companyInfo?.phone || '',
+    adminEmail: companyInfo?.email || '',
+
+    // Sold To (Client Profile)
+    soldToName: client?.name || order.userName || '',
+    soldToAddress: (client?.address || '').replace(/;/g, '\n'),
+    soldToPhone: client?.phone || '',
+
+    // Ship To (Delivery Info)
+    shipToName: client?.name || order.userName || '',
+    shipToAddress: (order.deliveryMethod === 'delivery' ? (client?.deliveryAddress || client?.address || '') : 'Pickup').replace(/;/g, '\n'),
+    shipToPhone: client?.phone || ''
+  });
+
+  const handleNoteChange = (index: number, note: string) => {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], note };
+    setItems(newItems);
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // We only update the items (notes), keeping totals and discount same
+      // We need to pass the existing totals and discountRate
+      // Re-calculate totals just to be safe, or pass existing ones if we trust them. 
+      // Since we are NOT changing prices/quantities here, we should just pass the current order totals.
+      // However, updateOrderDetails expects totals object.
+
+      const totals = {
+        originalSubTotal: order.items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0),
+        subTotal: order.subTotal,
+        taxTPS: order.taxTPS,
+        taxTVQ: order.taxTVQ,
+        total: order.total
+      };
+
+      await updateOrderDetails(order.id, items, totals, order.discountRate || 1);
+
+      // Generate PDF after saving
+      generatePDF();
+    } catch (error) {
+      console.error("Failed to save packing slip notes:", error);
+      alert("Failed to save notes.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Helper to sanitize text for PDF
+  const sanitizeForPdf = (str: string | undefined | null) => {
+    if (!str) return '';
+    let s = String(str)
+      .replace(/\uFF08/g, '(')
+      .replace(/\uFF09/g, ')')
+      .replace(/\u3002/g, '.')
+      .replace(/\uFF0C/g, ',')
+      .replace(/\uFF1A/g, ':')
+      .replace(/\uFF1B/g, ';')
+      .replace(/\u201C/g, '"')
+      .replace(/\u201D/g, '"')
+      .replace(/\u2018/g, "'")
+      .replace(/\u2019/g, "'");
+    return s.replace(/[^\x00-\xFF]/g, '').trim();
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+
+    // --- Header ---
+    doc.setFontSize(24);
+    doc.setTextColor(79, 70, 229); // Indigo 600
+    doc.text("BON DE LIVRAISON", pageWidth - 20, 20, { align: 'right' });
+
+    // Admin Info
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    let yPos = 20;
+    doc.text(invoiceData.adminName, 20, yPos); yPos += 5;
+    doc.text(invoiceData.adminAddress, 20, yPos); yPos += 5;
+    doc.text(`Tel: ${invoiceData.adminPhone}`, 20, yPos); yPos += 5;
+    doc.text(`Email: ${invoiceData.adminEmail}`, 20, yPos); yPos += 5;
+
+    // Details Box
+    yPos = 55;
+    doc.setDrawColor(200);
+    doc.setFillColor(245, 247, 255);
+    doc.rect(pageWidth - 90, yPos - 5, 70, 25, 'F');
+
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text("Order #:", pageWidth - 85, yPos);
+    doc.text(invoiceData.invoiceNumber, pageWidth - 25, yPos, { align: 'right' });
+    yPos += 6;
+    doc.text("Date:", pageWidth - 85, yPos);
+    doc.text(invoiceData.invoiceDate, pageWidth - 25, yPos, { align: 'right' });
+    yPos += 6;
+    doc.text("Order Date:", pageWidth - 85, yPos);
+    doc.text(invoiceData.orderDate, pageWidth - 25, yPos, { align: 'right' });
+
+    // Addresses
+    yPos = 90;
+    // Sold To
+    doc.setFontSize(11);
+    doc.setTextColor(79, 70, 229);
+    doc.text("Vendu à:", 20, yPos);
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(invoiceData.soldToName, 20, yPos + 6);
+
+    const soldAddressParts = invoiceData.soldToAddress.split(/[\n;]/).map(part => part.trim()).filter(part => part);
+    let currentY = yPos + 12;
+    soldAddressParts.forEach(part => {
+      const lines = doc.splitTextToSize(part, 80);
+      doc.text(lines, 20, currentY);
+      currentY += (lines.length * 5);
+    });
+    doc.text(`Tel: ${invoiceData.soldToPhone}`, 20, currentY);
+    const soldToEndY = currentY + 5;
+
+    // Ship To
+    doc.setFontSize(11);
+    doc.setTextColor(79, 70, 229);
+    doc.text("Livraison à:", pageWidth / 2 + 10, yPos);
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text(invoiceData.shipToName, pageWidth / 2 + 10, yPos + 6);
+
+    const shipAddressParts = invoiceData.shipToAddress.split(/[\n;]/).map(part => part.trim()).filter(part => part);
+    currentY = yPos + 12;
+    shipAddressParts.forEach(part => {
+      const lines = doc.splitTextToSize(part, 80);
+      doc.text(lines, pageWidth / 2 + 10, currentY);
+      currentY += (lines.length * 5);
+    });
+    doc.text(`Tel: ${invoiceData.shipToPhone}`, pageWidth / 2 + 10, currentY);
+    const shipToEndY = currentY + 5;
+
+    // Table
+    const tableStartY = Math.max(soldToEndY, shipToEndY) + 10;
+
+    const tableRows = items.map((item, index) => {
+      const description = sanitizeForPdf(item.productNameCN || item.productNameFR || 'Item');
+      const unit = item.isCase ? 'Case' : 'Unit';
+      const note = sanitizeForPdf(item.note || '');
+
+      return [
+        index + 1,
+        description,
+        item.quantity,
+        unit,
+        note
+      ];
+    });
+
+    autoTable(doc, {
+      startY: tableStartY,
+      head: [['No.', 'Description', 'QTY', 'Unit', 'Note']],
+      body: tableRows,
+      theme: 'striped',
+      headStyles: { fillColor: [79, 70, 229] },
+      columnStyles: {
+        0: { cellWidth: 15 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 20, halign: 'center' },
+        3: { cellWidth: 20, halign: 'center' },
+        4: { cellWidth: 60 } // Wide column for notes
+      },
+      styles: { overflow: 'linebreak' } // Enable text wrapping
+    });
+
+    doc.save(`Bon_Livraison_${invoiceData.invoiceNumber}.pdf`);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+          <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <Package className="text-indigo-600" />
+            Packing Slip / Bon de Livraison
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
+          <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200 space-y-8">
+            {/* Header Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Admin Info */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">From (Admin)</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="text-xs text-slate-500 block mb-1">Company Name</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminName} onChange={e => setInvoiceData({ ...invoiceData, adminName: e.target.value })} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-slate-500 block mb-1">Address</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminAddress} onChange={e => setInvoiceData({ ...invoiceData, adminAddress: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Phone</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminPhone} onChange={e => setInvoiceData({ ...invoiceData, adminPhone: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Email</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.adminEmail} onChange={e => setInvoiceData({ ...invoiceData, adminEmail: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Details</h3>
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Order Number</label>
+                    <input type="text" className="w-full text-sm border-slate-200 rounded-lg font-mono font-bold" value={invoiceData.invoiceNumber} onChange={e => setInvoiceData({ ...invoiceData, invoiceNumber: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 block mb-1">Date</label>
+                    <input type="date" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.invoiceDate} onChange={e => setInvoiceData({ ...invoiceData, invoiceDate: e.target.value })} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <hr className="border-slate-100" />
+
+            {/* Client Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Sold To */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Vendu à (Sold To)</h3>
+                <div className="space-y-3">
+                  <input type="text" className="w-full text-sm border-slate-200 rounded-lg font-bold" value={invoiceData.soldToName} onChange={e => setInvoiceData({ ...invoiceData, soldToName: e.target.value })} placeholder="Client Name" />
+                  <textarea className="w-full text-sm border-slate-200 rounded-lg" rows={2} value={invoiceData.soldToAddress} onChange={e => setInvoiceData({ ...invoiceData, soldToAddress: e.target.value })} placeholder="Address" />
+                  <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.soldToPhone} onChange={e => setInvoiceData({ ...invoiceData, soldToPhone: e.target.value })} placeholder="Phone" />
+                </div>
+              </div>
+
+              {/* Ship To */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Livraison à (Ship To)</h3>
+                <div className="space-y-3">
+                  <input type="text" className="w-full text-sm border-slate-200 rounded-lg font-bold" value={invoiceData.shipToName} onChange={e => setInvoiceData({ ...invoiceData, shipToName: e.target.value })} placeholder="Client Name" />
+                  <textarea className="w-full text-sm border-slate-200 rounded-lg" rows={2} value={invoiceData.shipToAddress} onChange={e => setInvoiceData({ ...invoiceData, shipToAddress: e.target.value })} placeholder="Delivery Address" />
+                  <input type="text" className="w-full text-sm border-slate-200 rounded-lg" value={invoiceData.shipToPhone} onChange={e => setInvoiceData({ ...invoiceData, shipToPhone: e.target.value })} placeholder="Phone" />
+                </div>
+              </div>
+            </div>
+
+            {/* Items Table */}
+            <div className="mt-8">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Items</h3>
+              <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 w-12">No.</th>
+                      <th className="px-4 py-3">Description</th>
+                      <th className="px-4 py-3 w-24 text-center">QTY</th>
+                      <th className="px-4 py-3 w-24 text-center">Unit</th>
+                      <th className="px-4 py-3 w-1/3">Note</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item, index) => (
+                      <tr key={index} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 text-slate-400">{index + 1}</td>
+                        <td className="px-4 py-3">
+                          <div className="font-medium text-slate-800">{item.productNameCN || item.productNameFR}</div>
+                        </td>
+                        <td className="px-4 py-3 text-center font-bold text-slate-700">{item.quantity}</td>
+                        <td className="px-4 py-3 text-center text-slate-500">{item.isCase ? 'Case' : 'Unit'}</td>
+                        <td className="px-4 py-3">
+                          <textarea
+                            rows={1}
+                            className="w-full text-sm border-slate-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+                            placeholder="Add note..."
+                            value={item.note || ''}
+                            onChange={(e) => handleNoteChange(index, e.target.value)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 border-t border-slate-100 bg-white flex justify-end gap-4">
+          <button onClick={onClose} className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="px-6 py-2.5 rounded-xl font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all flex items-center gap-2 disabled:opacity-50"
+          >
+            {isSaving ? 'Saving...' : (
+              <>
+                <Upload size={18} className="rotate-180" />
+                Save & Download PDF
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- Order History Manager ---
 
 const OrderHistoryManager: React.FC = () => {
@@ -1414,6 +1750,7 @@ const OrderHistoryManager: React.FC = () => {
   const [filterClient, setFilterClient] = useState<string>('all');
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [invoicingOrder, setInvoicingOrder] = useState<Order | null>(null);
+  const [packingOrder, setPackingOrder] = useState<Order | null>(null);
 
   const filteredOrders = orders.filter(o => filterClient === 'all' || o.userId === filterClient);
   const sortedOrders = [...filteredOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -1715,6 +2052,12 @@ const OrderHistoryManager: React.FC = () => {
                     <FileText size={14} /> Invoice
                   </button>
                   <button
+                    onClick={() => setPackingOrder(order)}
+                    className="text-sm bg-amber-50 text-amber-600 px-3 py-1 rounded-lg hover:bg-amber-100 transition-colors font-bold flex items-center gap-1"
+                  >
+                    <Package size={14} /> Packing
+                  </button>
+                  <button
                     onClick={() => {
                       if (window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
                         deleteOrder(order.id);
@@ -1876,6 +2219,16 @@ const OrderHistoryManager: React.FC = () => {
           users={users}
           products={products}
           onClose={() => setInvoicingOrder(null)}
+        />
+      )}
+
+      {packingOrder && (
+        <PackingSlipModal
+          order={packingOrder}
+          companyInfo={companyInfo}
+          users={users}
+          products={products}
+          onClose={() => setPackingOrder(null)}
         />
       )}
     </div>

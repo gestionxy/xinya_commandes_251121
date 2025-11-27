@@ -3,7 +3,7 @@ import { useStore } from '../services/store';
 import { Product, DEPARTMENTS, Order, CartItem } from '../types';
 import {
   Search, ShoppingCart, User as UserIcon, LogOut, Menu,
-  X, Plus, Minus, History, ChevronRight, Tag, Truck, Package
+  X, Plus, Minus, History, ChevronRight, Tag, Truck, Package, ChevronDown, ChevronUp
 } from 'lucide-react';
 
 export const ClientShop: React.FC<{ isGuest: boolean, onExitGuest: () => void }> = ({ isGuest, onExitGuest }) => {
@@ -13,6 +13,17 @@ export const ClientShop: React.FC<{ isGuest: boolean, onExitGuest: () => void }>
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isDeliveryModalOpen, setIsDeliveryModalOpen] = useState(false);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+
+  const toggleOrder = (orderId: string) => {
+    const newExpanded = new Set(expandedOrders);
+    if (newExpanded.has(orderId)) {
+      newExpanded.delete(orderId);
+    } else {
+      newExpanded.add(orderId);
+    }
+    setExpandedOrders(newExpanded);
+  };
 
   // Filter Products
   const filteredProducts = products.filter(p => {
@@ -265,46 +276,64 @@ export const ClientShop: React.FC<{ isGuest: boolean, onExitGuest: () => void }>
               ) : (
                 orders.filter(o => o.userId === currentUser?.id)
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map(order => (
-                    <div key={order.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                      <div className="flex justify-between mb-2">
-                        <span className="font-bold text-slate-700">{new Date(order.date).toLocaleDateString()}</span>
-                        <span className="font-bold text-indigo-600">${order.total.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="text-xs text-slate-500">
-                          ID: {order.id}
-                          {order.deliveryMethod && (
-                            <div className="mt-1 font-bold text-indigo-600">
-                              {order.deliveryMethod === 'pickup' ? 'Pickup / 自取' : 'Delivery / 送货'} • {order.deliveryTime?.replace('T', ' ')}
+                  .map(order => {
+                    const isExpanded = expandedOrders.has(order.id);
+                    return (
+                      <div key={order.id} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-200">
+                        {/* Header - Clickable */}
+                        <div
+                          onClick={() => toggleOrder(order.id)}
+                          className="p-4 cursor-pointer hover:bg-slate-50 transition-colors"
+                        >
+                          <div className="flex justify-between mb-2">
+                            <span className="font-bold text-slate-700">{new Date(order.date).toLocaleDateString()}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="font-bold text-indigo-600">${order.total.toFixed(2)}</span>
+                              {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
                             </div>
-                          )}
-                        </div>
-                        <span className={`text-xs font-bold px-2 py-1 rounded-full ${order.status === 'pending' ? 'bg-indigo-100 text-indigo-700' :
-                          order.status === 'processing' ? 'bg-amber-100 text-amber-700' :
-                            order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                              'bg-slate-100 text-slate-500'
-                          }`}>
-                          {order.status === 'pending' ? '已下单 / Placé' :
-                            order.status === 'processing' ? '处理中 / En Traitement' :
-                              order.status === 'completed' ? '已完成订单 / Complété' :
-                                '已取消 / Annulé'}
-                        </span>
-                      </div>
-                      <div className="space-y-1">
-                        {order.items.map((item, i) => (
-                          <div key={i} className="flex justify-between text-sm text-slate-600">
-                            <span>{item.quantity}x {item.productNameCN} ({item.isCase ? 'Case' : 'Unit'})</span>
-                            <span>${item.totalLine.toFixed(2)}</span>
                           </div>
-                        ))}
+                          <div className="flex justify-between items-center">
+                            <div className="text-xs text-slate-500">
+                              ID: {order.id}
+                              {order.deliveryMethod && (
+                                <div className="mt-1 font-bold text-indigo-600">
+                                  {order.deliveryMethod === 'pickup' ? 'Pickup / 自取' : 'Delivery / 送货'} • {order.deliveryTime?.replace('T', ' ')}
+                                </div>
+                              )}
+                            </div>
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${order.status === 'pending' ? 'bg-indigo-100 text-indigo-700' :
+                              order.status === 'processing' ? 'bg-amber-100 text-amber-700' :
+                                order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                                  'bg-slate-100 text-slate-500'
+                              }`}>
+                              {order.status === 'pending' ? '已下单 / Placé' :
+                                order.status === 'processing' ? '处理中 / En Traitement' :
+                                  order.status === 'completed' ? '已完成订单 / Complété' :
+                                    '已取消 / Annulé'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Details - Collapsible */}
+                        {isExpanded && (
+                          <div className="px-4 pb-4 border-t border-slate-100 pt-3 animate-fade-in bg-slate-50/50">
+                            <div className="space-y-1">
+                              {order.items.map((item, i) => (
+                                <div key={i} className="flex justify-between text-sm text-slate-600">
+                                  <span>{item.quantity}x {item.productNameCN} ({item.isCase ? 'Case' : 'Unit'})</span>
+                                  <span>${item.totalLine.toFixed(2)}</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-400">
+                              <span>TPS: ${order.taxTPS.toFixed(2)}</span>
+                              <span>TVQ: ${order.taxTVQ.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-400">
-                        <span>TPS: ${order.taxTPS.toFixed(2)}</span>
-                        <span>TVQ: ${order.taxTVQ.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
               )}
             </div>
           </div>

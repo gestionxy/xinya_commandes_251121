@@ -800,7 +800,10 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     const tableStartY = Math.max(soldToEndY, shipToEndY) + 10;
 
     const tableRows = order.items.map((item, index) => {
-      const description = item.productNameCN || item.productNameFR || 'Item';
+      let description = item.productNameCN || item.productNameFR || 'Item';
+      if (item.taxable) {
+        description += ' (Tax)';
+      }
       const unit = item.isCase ? 'Case' : 'Unit';
       // item.unitPrice is now the ORIGINAL price
       const expectedTotal = item.unitPrice * item.quantity;
@@ -1009,7 +1012,10 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
                       <tr key={index} className="hover:bg-slate-50">
                         <td className="px-4 py-3 text-slate-400">{index + 1}</td>
                         <td className="px-4 py-3">
-                          <div className="font-medium text-slate-800">{item.productNameCN || item.productNameFR}</div>
+                          <div className="font-medium text-slate-800">
+                            {item.productNameCN || item.productNameFR}
+                            {item.taxable && <span className="ml-2 text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">Tax</span>}
+                          </div>
                           {item.isSpecialPrice && <div className="text-xs text-amber-600 font-medium">* Prix Special</div>}
                         </td>
                         <td className="px-4 py-3 text-slate-600">

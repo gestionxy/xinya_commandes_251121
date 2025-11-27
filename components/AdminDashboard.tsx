@@ -1174,6 +1174,8 @@ const EditOrderModal: React.FC<{ order: Order; onClose: () => void }> = ({ order
       item.unitPrice = value;
     } else if (field === 'isSpecialPrice') {
       item.isSpecialPrice = value;
+    } else if (field === 'taxable') {
+      item.taxable = value;
     }
 
     // Recalculate line total immediately for UI feedback
@@ -1275,6 +1277,17 @@ const EditOrderModal: React.FC<{ order: Order; onClose: () => void }> = ({ order
                       className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 border-gray-300"
                     />
                     <label htmlFor={`special-${idx}`} className="text-xs font-bold text-slate-600 select-none cursor-pointer">Prix Special (No Discount)</label>
+                  </div>
+
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`taxable-${idx}`}
+                      checked={!!item.taxable}
+                      onChange={(e) => handleUpdateItem(idx, 'taxable', e.target.checked)}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500 border-gray-300"
+                    />
+                    <label htmlFor={`taxable-${idx}`} className="text-xs font-bold text-slate-600 select-none cursor-pointer">Taxable (TPS/TVQ)</label>
                   </div>
                 </div>
 

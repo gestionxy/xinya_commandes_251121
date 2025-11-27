@@ -4,6 +4,7 @@ import { User, Product, DEPARTMENTS, Order, CompanyInfo } from '../types';
 import { Filter, Trash2, Upload, Plus, Edit, X, Check, ChevronDown, ChevronUp, Users, Package, FileText, LogOut, Truck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 export const AdminDashboard: React.FC = () => {
   const { logout } = useStore();
@@ -443,11 +444,28 @@ const ProductManager: React.FC = () => {
     }
   };
 
+  const handleExportProducts = () => {
+    const exportData = products.map(p => ({
+      nameCN: p.nameCN,
+      nameFR: p.nameFR,
+      department: p.department,
+      priceUnit: p.priceUnit,
+      priceCase: p.priceCase,
+      taxable: p.taxable ? 1 : 0,
+      imageUrl: p.imageUrl
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Products");
+    XLSX.writeFile(wb, `products_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Inventory Management</h2>
-        <div className="flex gap-3">
+        <h2 className="text-2xl font-bold text-slate-800">Product Management</h2>
+        <div className="flex gap-4">
           {selectedIds.size > 0 && (
             <button
               onClick={handleBulkDelete}
@@ -457,10 +475,18 @@ const ProductManager: React.FC = () => {
             </button>
           )}
           <button
-            onClick={() => setIsBulkOpen(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2"
+            onClick={handleExportProducts}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-100 transition-colors font-bold"
           >
-            <Upload size={18} /> Bulk Upload
+            <FileText size={20} />
+            Download Excel
+          </button>
+          <button
+            onClick={() => setIsBulkOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors font-bold"
+          >
+            <Upload size={20} />
+            Bulk Import
           </button>
           <button
             onClick={() => setIsEditing({

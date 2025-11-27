@@ -324,6 +324,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         status: 'pending',
         delivery_method: deliveryMethod,
         delivery_time: deliveryTime,
+        discount_rate: discountRate, // Persist discount rate
         order_details: orderItems
       });
       if (error) {

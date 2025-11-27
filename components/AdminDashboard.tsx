@@ -803,8 +803,10 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
       const description = item.productNameCN || item.productNameFR || 'Item';
       const unit = item.isCase ? 'Case' : 'Unit';
       // item.unitPrice is now the ORIGINAL price
-      const discountText = (!item.isSpecialPrice && (order.discountRate || 1) < 1)
-        ? `-${((1 - (order.discountRate || 1)) * 100).toFixed(0)}%`
+      const expectedTotal = item.unitPrice * item.quantity;
+      const discountPct = expectedTotal > 0 ? (1 - (item.totalLine / expectedTotal)) * 100 : 0;
+      const discountText = (discountPct > 1 && !item.isSpecialPrice)
+        ? `-${discountPct.toFixed(0)}%`
         : '';
 
       return [
@@ -1100,6 +1102,12 @@ const EditOrderModal: React.FC<{ order: Order; onClose: () => void }> = ({ order
   const [discountRate, setDiscountRate] = useState<number>(() => {
     if (order.discountRate && order.discountRate < 1) {
       return order.discountRate;
+    }
+    // Try to calculate from items
+    const firstDiscountedItem = order.items.find(i => !i.isSpecialPrice && i.unitPrice * i.quantity > i.totalLine);
+    if (firstDiscountedItem) {
+      const rate = firstDiscountedItem.totalLine / (firstDiscountedItem.unitPrice * firstDiscountedItem.quantity);
+      return parseFloat(rate.toFixed(2)); // Round to 2 decimals
     }
     // Fallback: try to find client's current discount rate
     const client = users.find(u => u.id === order.userId || u.name === order.userName);

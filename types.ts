@@ -65,6 +65,9 @@ export interface Order {
   status: 'pending' | 'processing' | 'completed' | 'cancelled';
   deliveryMethod?: string;
   deliveryTime?: string;
+  deliveryAddress?: string;
+  contactPhone?: string;
+  note?: string;
 }
 
 export const DEPARTMENTS = [

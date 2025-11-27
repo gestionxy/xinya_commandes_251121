@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../services/store';
 import { User, Product, DEPARTMENTS, Order, CompanyInfo } from '../types';
-import { Filter, Trash2, Upload, Plus, Edit, X, Check, ChevronDown, ChevronUp, Users, Package, FileText, LogOut } from 'lucide-react';
+import { Filter, Trash2, Upload, Plus, Edit, X, Check, ChevronDown, ChevronUp, Users, Package, FileText, LogOut, Truck } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -1775,7 +1775,19 @@ const OrderHistoryManager: React.FC = () => {
   const [filterClient, setFilterClient] = useState<string>('all');
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [invoicingOrder, setInvoicingOrder] = useState<Order | null>(null);
+
   const [packingOrder, setPackingOrder] = useState<Order | null>(null);
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+
+  const toggleOrder = (orderId: string) => {
+    const newExpanded = new Set(expandedOrders);
+    if (newExpanded.has(orderId)) {
+      newExpanded.delete(orderId);
+    } else {
+      newExpanded.add(orderId);
+    }
+    setExpandedOrders(newExpanded);
+  };
 
   const filteredOrders = orders.filter(o => filterClient === 'all' || o.userId === filterClient);
   const sortedOrders = [...filteredOrders].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -2014,22 +2026,27 @@ const OrderHistoryManager: React.FC = () => {
       <div className="grid grid-cols-1 gap-6">
         {sortedOrders.map(order => (
           <div key={order.id} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h3 className="text-lg font-bold text-slate-800">{order.id}</h3>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                    order.status === 'processing' ? 'bg-indigo-100 text-indigo-700' :
-                      order.status === 'cancelled' ? 'bg-slate-100 text-slate-500' :
-                        'bg-amber-100 text-amber-700'
-                    }`}>
-                    {order.status}
-                  </span>
+            <div className="flex justify-between items-start mb-0">
+              <div className="flex items-start gap-4 cursor-pointer" onClick={() => toggleOrder(order.id)}>
+                <div className={`mt-1 transition-transform ${expandedOrders.has(order.id) ? 'rotate-180' : ''}`}>
+                  <ChevronDown size={20} className="text-slate-400" />
                 </div>
-                <div className="text-sm text-slate-500 flex items-center gap-2">
-                  <span>{new Date(order.date).toLocaleString()}</span>
-                  <span>•</span>
-                  <span className="font-medium text-slate-700">{order.userName}</span>
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-lg font-bold text-slate-800">{order.id}</h3>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase ${order.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                      order.status === 'processing' ? 'bg-indigo-100 text-indigo-700' :
+                        order.status === 'cancelled' ? 'bg-slate-100 text-slate-500' :
+                          'bg-amber-100 text-amber-700'
+                      }`}>
+                      {order.status}
+                    </span>
+                  </div>
+                  <div className="text-sm text-slate-500 flex items-center gap-2">
+                    <span>{new Date(order.date).toLocaleString()}</span>
+                    <span>•</span>
+                    <span className="font-medium text-slate-700">{order.userName}</span>
+                  </div>
                 </div>
               </div>
               <div className="text-right">
@@ -2096,166 +2113,215 @@ const OrderHistoryManager: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-slate-400 bg-slate-50 rounded-lg">
-                  <tr>
-                    <th className="p-2 font-medium pl-4">Image</th>
-                    <th className="p-2 font-medium">Product Details</th>
-                    <th className="p-2 font-medium">Department</th>
-                    <th className="p-2 font-medium text-center">Tax</th>
-                    <th className="p-2 font-medium text-right">Qty</th>
-                    <th className="p-2 font-medium text-right">Prix (Orig.)</th>
-                    <th className="p-2 font-medium text-center">Disc.</th>
-                    <th className="p-2 font-medium text-right pr-4">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...order.items]
-                    .sort((a, b) => (a.department || '').localeCompare(b.department || ''))
-                    .map((item, idx) => {
-                      // Fallback logic for UI display
-                      let displayImage = item.imageUrl;
-                      let displayDept = item.department;
-                      let displayTax = item.taxable;
-                      let productExists = true;
+            {expandedOrders.has(order.id) && (
+              <div className="mt-6 pt-6 border-t border-slate-100 animate-fade-in">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-slate-400 bg-slate-50 rounded-lg">
+                      <tr>
+                        <th className="p-2 font-medium pl-4">Image</th>
+                        <th className="p-2 font-medium">Product Details</th>
+                        <th className="p-2 font-medium">Department</th>
+                        <th className="p-2 font-medium text-center">Tax</th>
+                        <th className="p-2 font-medium text-right">Qty</th>
+                        <th className="p-2 font-medium text-right">Prix (Orig.)</th>
+                        <th className="p-2 font-medium text-center">Disc.</th>
+                        <th className="p-2 font-medium text-right pr-4">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...order.items]
+                        .sort((a, b) => (a.department || '').localeCompare(b.department || ''))
+                        .map((item, idx) => {
+                          // Fallback logic for UI display
+                          let displayImage = item.imageUrl;
+                          let displayDept = item.department;
+                          let displayTax = item.taxable;
+                          let productExists = true;
 
-                      if (!displayImage || !displayDept || displayTax === undefined) {
-                        const product = products.find(p => p.nameCN === item.productNameCN);
-                        if (product) {
-                          if (!displayImage) displayImage = product.imageUrl;
-                          if (!displayDept) displayDept = product.department;
-                          if (displayTax === undefined) displayTax = product.taxable;
-                        } else {
-                          // Product not found in current inventory
-                          if (!displayImage) productExists = false;
-                        }
-                      }
+                          if (!displayImage || !displayDept || displayTax === undefined) {
+                            const product = products.find(p => p.nameCN === item.productNameCN);
+                            if (product) {
+                              if (!displayImage) displayImage = product.imageUrl;
+                              if (!displayDept) displayDept = product.department;
+                              if (displayTax === undefined) displayTax = product.taxable;
+                            } else {
+                              // Product not found in current inventory
+                              if (!displayImage) productExists = false;
+                            }
+                          }
 
-                      const discountRate = order.discountRate || 1;
-                      const isDiscounted = !item.isSpecialPrice && discountRate < 1;
+                          const discountRate = order.discountRate || 1;
+                          const isDiscounted = !item.isSpecialPrice && discountRate < 1;
+
+                          return (
+                            <tr key={idx} className="border-b border-slate-50 last:border-0">
+                              <td className="p-2 pl-4">
+                                <div className="w-24 h-24 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center text-center">
+                                  {productExists && displayImage ? (
+                                    <img src={displayImage} alt="Product" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 leading-tight p-1">
+                                      图片已无或商品已失效
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2">
+                                <div className="text-slate-800 font-medium">{item.productNameCN}</div>
+                                <div className="text-xs text-slate-500">{item.productNameFR}</div>
+                                {item.addedByAdmin && (
+                                  <span className="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded mt-1">
+                                    Admin Added / 后加
+                                  </span>
+                                )}
+                                {item.isSpecialPrice && (
+                                  <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[10px] font-bold rounded mt-1 ml-1">
+                                    Special Price *
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2 text-slate-600 text-xs">
+                                {displayDept}
+                              </td>
+                              <td className="p-2 text-center">
+                                {displayTax ? (
+                                  <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-bold">Tax</span>
+                                ) : (
+                                  <span className="text-slate-300">-</span>
+                                )}
+                              </td>
+                              <td className="p-2 text-right font-mono">
+                                {item.quantity} <span className="text-xs text-slate-400">{item.isCase ? 'cs' : 'un'}</span>
+                              </td>
+                              <td className="p-2 text-right font-mono text-slate-600">
+                                ${item.unitPrice.toFixed(2)}
+                              </td>
+                              <td className="p-2 text-center font-mono text-emerald-600 font-bold text-xs">
+                                {isDiscounted ? `-${((1 - discountRate) * 100).toFixed(0)}%` : '-'}
+                              </td>
+                              <td className="p-2 text-right font-mono font-bold text-slate-700 pr-4">
+                                ${item.totalLine.toFixed(2)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end gap-4 text-sm">
+                  <div className="text-right space-y-1">
+                    {/* Calculate Original Subtotal for display */}
+                    {(() => {
+                      const originalSubTotal = order.items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
+                      const discountAmount = originalSubTotal - order.subTotal;
 
                       return (
-                        <tr key={idx} className="border-b border-slate-50 last:border-0">
-                          <td className="p-2 pl-4">
-                            <div className="w-24 h-24 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 flex items-center justify-center text-center">
-                              {productExists && displayImage ? (
-                                <img src={displayImage} alt="Product" className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="text-[10px] text-slate-400 leading-tight p-1">
-                                  图片已无或商品已失效
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-2">
-                            <div className="text-slate-800 font-medium">{item.productNameCN}</div>
-                            <div className="text-xs text-slate-500">{item.productNameFR}</div>
-                            {item.addedByAdmin && (
-                              <span className="inline-block px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded mt-1">
-                                Admin Added / 后加
-                              </span>
-                            )}
-                            {item.isSpecialPrice && (
-                              <span className="inline-block px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[10px] font-bold rounded mt-1 ml-1">
-                                Special Price *
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-2 text-slate-600 text-xs">
-                            {displayDept}
-                          </td>
-                          <td className="p-2 text-center">
-                            {displayTax ? (
-                              <span className="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-bold">Tax</span>
-                            ) : (
-                              <span className="text-slate-300">-</span>
-                            )}
-                          </td>
-                          <td className="p-2 text-right font-mono">
-                            {item.quantity} <span className="text-xs text-slate-400">{item.isCase ? 'cs' : 'un'}</span>
-                          </td>
-                          <td className="p-2 text-right font-mono text-slate-600">
-                            ${item.unitPrice.toFixed(2)}
-                          </td>
-                          <td className="p-2 text-center font-mono text-emerald-600 font-bold text-xs">
-                            {isDiscounted ? `-${((1 - discountRate) * 100).toFixed(0)}%` : '-'}
-                          </td>
-                          <td className="p-2 text-right font-mono font-bold text-slate-700 pr-4">
-                            ${item.totalLine.toFixed(2)}
-                          </td>
-                        </tr>
+                        <>
+                          <div className="text-slate-500">Original Price: <span className="font-mono font-bold text-slate-700">${originalSubTotal.toFixed(2)}</span></div>
+                          {discountAmount > 0.01 && (
+                            <div className="text-emerald-600">Discount: <span className="font-mono font-bold">-${discountAmount.toFixed(2)}</span></div>
+                          )}
+                          <div className="text-slate-500 pt-1 border-t border-slate-100 mt-1">Subtotal (Net): <span className="font-mono font-bold text-slate-700">${order.subTotal.toFixed(2)}</span></div>
+                        </>
                       );
-                    })}
-                </tbody>
-              </table>
-            </div>
+                    })()}
 
-            <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end gap-4 text-sm">
-              <div className="text-right space-y-1">
-                {/* Calculate Original Subtotal for display */}
-                {(() => {
-                  const originalSubTotal = order.items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
-                  const discountAmount = originalSubTotal - order.subTotal;
+                    <div className="text-slate-500">TPS (5%): <span className="font-mono font-bold text-slate-700">${order.taxTPS.toFixed(2)}</span></div>
+                    <div className="text-slate-500">TVQ (9.975%): <span className="font-mono font-bold text-slate-700">${order.taxTVQ.toFixed(2)}</span></div>
+                    <div className="text-lg font-bold text-indigo-600 mt-2">Total: ${order.total.toFixed(2)}</div>
+                  </div>
+                </div>
 
-                  return (
-                    <>
-                      <div className="text-slate-500">Original Price: <span className="font-mono font-bold text-slate-700">${originalSubTotal.toFixed(2)}</span></div>
-                      {discountAmount > 0.01 && (
-                        <div className="text-emerald-600">Discount: <span className="font-mono font-bold">-${discountAmount.toFixed(2)}</span></div>
-                      )}
-                      <div className="text-slate-500 pt-1 border-t border-slate-100 mt-1">Subtotal (Net): <span className="font-mono font-bold text-slate-700">${order.subTotal.toFixed(2)}</span></div>
-                    </>
-                  );
-                })()}
+                <div className="mt-6 bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <h4 className="font-bold text-slate-700 mb-2 flex items-center gap-2">
+                    <Truck size={18} className="text-indigo-600" />
+                    Delivery Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-slate-500 block">Method:</span>
+                      <span className="font-medium capitalize text-slate-800">{order.deliveryMethod}</span>
+                    </div>
+                    {order.deliveryMethod === 'delivery' && (
+                      <>
+                        <div>
+                          <span className="text-slate-500 block">Address:</span>
+                          <span className="font-medium text-slate-800 whitespace-pre-line">
+                            {order.deliveryAddress ? order.deliveryAddress.replace(/;/g, '\n') : 'N/A'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block">Delivery Time:</span>
+                          <span className="font-medium text-slate-800">{order.deliveryTime ? order.deliveryTime.replace('T', ' ') : 'N/A'}</span>
+                        </div>
+                      </>
+                    )}
+                    {order.deliveryMethod === 'pickup' && (
+                      <div>
+                        <span className="text-slate-500 block">Pickup Time:</span>
+                        <span className="font-medium text-slate-800">{order.deliveryTime ? order.deliveryTime.replace('T', ' ') : 'N/A'}</span>
+                      </div>
+                    )}
+                    <div>
+                      <span className="text-slate-500 block">Contact:</span>
+                      <span className="font-medium text-slate-800">{order.contactPhone || 'N/A'}</span>
+                    </div>
+                    {order.note && (
+                      <div className="col-span-2 mt-2 bg-amber-50 p-3 rounded-lg border border-amber-100">
+                        <span className="text-amber-600 font-bold block text-xs uppercase tracking-wider mb-1">Note from Client</span>
+                        <p className="text-amber-800">{order.note}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-                <div className="text-slate-500">TPS (5%): <span className="font-mono font-bold text-slate-700">${order.taxTPS.toFixed(2)}</span></div>
-                <div className="text-slate-500">TVQ (9.975%): <span className="font-mono font-bold text-slate-700">${order.taxTVQ.toFixed(2)}</span></div>
-                <div className="text-lg font-bold text-indigo-600 mt-2">Total: ${order.total.toFixed(2)}</div>
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => setEditingOrder(order)}
+                    className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-bold text-sm bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <Edit size={16} />
+                    Edit Order Details
+                  </button>
+                </div>
               </div>
-            </div>
-
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={() => setEditingOrder(order)}
-                className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-bold shadow-md shadow-indigo-200"
-              >
-                Edit Order / 修改订单
-              </button>
-            </div>
+            )}
           </div>
         ))}
+
         {sortedOrders.length === 0 && (
           <div className="text-center py-12 text-slate-400">No orders found</div>
         )}
+
+        {editingOrder && (
+          <EditOrderModal
+            order={editingOrder}
+            onClose={() => setEditingOrder(null)}
+          />
+        )}
+
+        {invoicingOrder && (
+          <InvoiceModal
+            order={invoicingOrder}
+            companyInfo={companyInfo}
+            users={users}
+            products={products}
+            onClose={() => setInvoicingOrder(null)}
+          />
+        )}
+
+        {packingOrder && (
+          <PackingSlipModal
+            order={packingOrder}
+            companyInfo={companyInfo}
+            users={users}
+            products={products}
+            onClose={() => setPackingOrder(null)}
+          />
+        )}
       </div>
-
-      {editingOrder && (
-        <EditOrderModal
-          order={editingOrder}
-          onClose={() => setEditingOrder(null)}
-        />
-      )}
-
-      {invoicingOrder && (
-        <InvoiceModal
-          order={invoicingOrder}
-          companyInfo={companyInfo}
-          users={users}
-          products={products}
-          onClose={() => setInvoicingOrder(null)}
-        />
-      )}
-
-      {packingOrder && (
-        <PackingSlipModal
-          order={packingOrder}
-          companyInfo={companyInfo}
-          users={users}
-          products={products}
-          onClose={() => setPackingOrder(null)}
-        />
-      )}
     </div>
   );
 };
@@ -2366,20 +2432,20 @@ const BulkUploadModal: React.FC<{ onClose: () => void, onImport: (excel: File, z
 
 // CSS Utility
 const styles = `
-  .form-label {
-  @apply block text-xs font-bold text-slate-500 mb-1 uppercase;
+            .form-label {
+              @apply block text-xs font-bold text-slate-500 mb-1 uppercase;
 }
             .form-input {
-  @apply w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all;
+              @apply w-full bg-slate-50 border border-slate-200 p-2.5 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all;
 }
             .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+              animation: fadeIn 0.3s ease-out;
   }
-@keyframes fadeIn {
-              from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            @keyframes fadeIn {
+              from {opacity: 0; transform: translateY(10px); }
+            to {opacity: 1; transform: translateY(0); }
 }
-`;
+            `;
 const styleSheet = document.createElement("style");
 styleSheet.innerText = styles;
 document.head.appendChild(styleSheet);

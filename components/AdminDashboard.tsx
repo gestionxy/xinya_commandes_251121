@@ -691,7 +691,7 @@ const ProductManager: React.FC = () => {
 };
 
 // --- Invoice Modal ---
-const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, users: User[], onClose: () => void }> = ({ order, companyInfo, users, onClose }) => {
+const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, users: User[], products: Product[], onClose: () => void }> = ({ order, companyInfo, users, products, onClose }) => {
   const client = users.find(u => u.id === order.userId);
 
   // Initial State from Props
@@ -801,7 +801,15 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
 
     const tableRows = order.items.map((item, index) => {
       let description = item.productNameCN || item.productNameFR || 'Item';
-      if (item.taxable) {
+
+      // Fallback: if item.taxable is undefined (legacy order), check current product list
+      let isTaxable = item.taxable;
+      if (isTaxable === undefined) {
+        const product = products.find(p => p.nameCN === item.productNameCN);
+        if (product) isTaxable = product.taxable;
+      }
+
+      if (isTaxable) {
         description += ' (Tax)';
       }
       const unit = item.isCase ? 'Case' : 'Unit';
@@ -1853,6 +1861,7 @@ const OrderHistoryManager: React.FC = () => {
           order={invoicingOrder}
           companyInfo={companyInfo}
           users={users}
+          products={products}
           onClose={() => setInvoicingOrder(null)}
         />
       )}

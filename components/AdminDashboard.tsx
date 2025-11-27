@@ -1586,8 +1586,11 @@ const OrderHistoryManager: React.FC = () => {
         headStyles: { minCellHeight: 10 }, // Standard height for header
         bodyStyles: { minCellHeight: 40 }, // Increased height for body rows (images)
         columnStyles: {
-          0: { cellWidth: 40 }, // Dedicated Image column
-          1: { cellWidth: 80 }  // Product Details column (wider)
+          0: { cellWidth: 38 }, // Dedicated Image column
+          1: { cellWidth: 70 }, // Product Details column
+          2: { cellWidth: 25 }, // Qty - increased to prevent wrapping
+          3: { cellWidth: 25 }, // Price
+          4: { cellWidth: 25 }  // Total
         }
       });
 

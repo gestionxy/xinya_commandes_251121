@@ -53,6 +53,8 @@ export interface Order {
     addedByAdmin?: boolean;
     isSpecialPrice?: boolean; // New field: if true, excludes from global discount
     note?: string; // Packing slip note
+    packingQuantity?: number; // Override for packing slip
+    packingUnit?: string; // Override for packing slip
   }[];
   subTotal: number;
   discountRate?: number; // New field: specific discount rate for this order

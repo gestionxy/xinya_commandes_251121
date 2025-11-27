@@ -1107,6 +1107,8 @@ interface OrderItem {
   addedByAdmin?: boolean;
   isSpecialPrice?: boolean;
   note?: string;
+  packingQuantity?: number;
+  packingUnit?: string;
 }
 
 // --- Edit Order Modal ---
@@ -1412,7 +1414,12 @@ const EditOrderModal: React.FC<{ order: Order; onClose: () => void }> = ({ order
 const PackingSlipModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, users: User[], products: Product[], onClose: () => void }> = ({ order, companyInfo, users, products, onClose }) => {
   const { updateOrderDetails } = useStore();
   const client = users.find(u => u.id === order.userId);
-  const [items, setItems] = useState<OrderItem[]>(order.items);
+  // Initialize items with defaults for packing fields if missing
+  const [items, setItems] = useState<OrderItem[]>(() => order.items.map(item => ({
+    ...item,
+    packingQuantity: item.packingQuantity ?? item.quantity,
+    packingUnit: item.packingUnit ?? (item.isCase ? 'Case' : 'Unit')
+  })));
   const [isSaving, setIsSaving] = useState(false);
 
   // Initial State from Props
@@ -1438,9 +1445,9 @@ const PackingSlipModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null
     shipToPhone: client?.phone || ''
   });
 
-  const handleNoteChange = (index: number, note: string) => {
+  const handleItemChange = (index: number, field: keyof OrderItem, value: any) => {
     const newItems = [...items];
-    newItems[index] = { ...newItems[index], note };
+    newItems[index] = { ...newItems[index], [field]: value };
     setItems(newItems);
   };
 
@@ -1568,13 +1575,15 @@ const PackingSlipModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null
 
     const tableRows = items.map((item, index) => {
       const description = sanitizeForPdf(item.productNameCN || item.productNameFR || 'Item');
-      const unit = item.isCase ? 'Case' : 'Unit';
+      // Use packing overrides
+      const unit = sanitizeForPdf(item.packingUnit || (item.isCase ? 'Case' : 'Unit'));
+      const quantity = item.packingQuantity ?? item.quantity;
       const note = sanitizeForPdf(item.note || '');
 
       return [
         index + 1,
         description,
-        item.quantity,
+        quantity,
         unit,
         note
       ];
@@ -1701,15 +1710,31 @@ const PackingSlipModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null
                         <td className="px-4 py-3">
                           <div className="font-medium text-slate-800">{item.productNameCN || item.productNameFR}</div>
                         </td>
-                        <td className="px-4 py-3 text-center font-bold text-slate-700">{item.quantity}</td>
-                        <td className="px-4 py-3 text-center text-slate-500">{item.isCase ? 'Case' : 'Unit'}</td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="w-20 text-center text-sm border-slate-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 font-bold text-slate-700"
+                            value={item.packingQuantity ?? item.quantity}
+                            onChange={(e) => handleItemChange(index, 'packingQuantity', parseFloat(e.target.value))}
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <input
+                            type="text"
+                            className="w-20 text-center text-sm border-slate-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 text-slate-500"
+                            value={item.packingUnit ?? (item.isCase ? 'Case' : 'Unit')}
+                            onChange={(e) => handleItemChange(index, 'packingUnit', e.target.value)}
+                          />
+                        </td>
                         <td className="px-4 py-3">
                           <textarea
                             rows={1}
                             className="w-full text-sm border-slate-200 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 resize-y"
                             placeholder="Add note..."
                             value={item.note || ''}
-                            onChange={(e) => handleNoteChange(index, e.target.value)}
+                            onChange={(e) => handleItemChange(index, 'note', e.target.value)}
                           />
                         </td>
                       </tr>

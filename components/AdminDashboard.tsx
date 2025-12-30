@@ -373,13 +373,20 @@ const ClientManager: React.FC = () => {
 
 // --- Product Manager ---
 const ProductManager: React.FC = () => {
-  const { products, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, bulkImportProducts } = useStore();
+  const { products, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, bulkImportProducts, uploadProductImage } = useStore();
   const [isEditing, setIsEditing] = useState<Partial<Product> | null>(null);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeDept, setActiveDept] = useState('All');
   const [sortBy, setSortBy] = useState<'price' | 'name'>('price');
   const [searchQuery, setSearchQuery] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Reset image file when opening modal
+  useEffect(() => {
+    setImageFile(null);
+  }, [isEditing?.id]);
 
   // Filter & Sort
   const filteredProducts = products.filter(p => {
@@ -428,12 +435,36 @@ const ProductManager: React.FC = () => {
 
     // If it has an ID and exists in products, update it. Otherwise add it.
     // Note: For new products we generate a temp ID in openNew, but check if it exists.
+    // If it has an ID and exists in products, update it. Otherwise add it.
+    // Note: For new products we generate a temp ID in openNew, but check if it exists.
     const existing = products.find(p => p.id === isEditing.id);
 
+    let finalImageUrl = isEditing.imageUrl;
+
+    if (imageFile) {
+      if (!uploadProductImage) {
+        alert("Image upload not supported in this environment");
+        return;
+      }
+      setIsUploading(true);
+      const uploadedUrl = await uploadProductImage(imageFile);
+      setIsUploading(false);
+      if (uploadedUrl) {
+        finalImageUrl = uploadedUrl;
+      } else {
+        alert("Image upload failed. Please try again or use a URL.");
+        // We could return here to stop save, but maybe user wants to proceed without image update?
+        // Let's stop to be safe.
+        return;
+      }
+    }
+
+    const productToSave = { ...isEditing, imageUrl: finalImageUrl };
+
     if (existing) {
-      await updateProduct(isEditing as Product);
+      await updateProduct(productToSave as Product);
     } else {
-      await addProduct(isEditing as Product);
+      await addProduct(productToSave as Product);
     }
     setIsEditing(null);
   };
@@ -679,8 +710,41 @@ const ProductManager: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="form-label">Image URL</label>
-                  <input type="text" className="form-input" value={isEditing.imageUrl || ''} onChange={e => setIsEditing({ ...isEditing, imageUrl: e.target.value })} placeholder="http://..." />
+                  <label className="form-label">Image</label>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      {/* Preview */}
+                      <div className="w-12 h-12 rounded border border-slate-200 overflow-hidden bg-slate-50 flex-shrink-0">
+                        {(imageFile || isEditing.imageUrl) ? (
+                          <img
+                            src={imageFile ? URL.createObjectURL(imageFile) : isEditing.imageUrl}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-slate-300"><Upload size={16} /></div>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            setImageFile(e.target.files[0]);
+                          }
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400">Upload an image or check existing URL below.</p>
+                    <input
+                      type="text"
+                      className="form-input text-xs text-slate-400"
+                      value={isEditing.imageUrl || ''}
+                      onChange={e => setIsEditing({ ...isEditing, imageUrl: e.target.value })}
+                      placeholder="Or Image URL (optional)"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -690,8 +754,18 @@ const ProductManager: React.FC = () => {
                   <input required type="number" step="0.01" className="form-input bg-white" value={isEditing.priceUnit || ''} onChange={e => setIsEditing({ ...isEditing, priceUnit: parseFloat(e.target.value) })} />
                 </div>
                 <div>
-                  <label className="form-label">Case Price ($)</label>
-                  <input required type="number" step="0.01" className="form-input bg-white" value={isEditing.priceCase || ''} onChange={e => setIsEditing({ ...isEditing, priceCase: parseFloat(e.target.value) })} />
+                  <label className="form-label">Case Price ($) (Optional)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="form-input bg-white"
+                    value={isEditing.priceCase === undefined || isEditing.priceCase === null ? '' : isEditing.priceCase}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setIsEditing({ ...isEditing, priceCase: val === '' ? undefined : parseFloat(val) })
+                    }}
+                    placeholder="Optional"
+                  />
                 </div>
                 <div className="flex items-center h-full pt-6">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -701,8 +775,8 @@ const ProductManager: React.FC = () => {
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-600/20 transition-all">
-                Save Product
+              <button disabled={isUploading} type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-600/20 transition-all disabled:opacity-50">
+                {isUploading ? 'Uploading & Saving...' : 'Save Product'}
               </button>
             </form>
           </div>

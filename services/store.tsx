@@ -30,6 +30,7 @@ interface StoreContextType {
   deleteOrder: (id: string) => Promise<void>;
   updateOrderStatus: (id: string, status: 'pending' | 'processing' | 'completed' | 'cancelled') => Promise<void>;
   updateOrderDetails: (id: string, newItems: any[], newTotals: any, discountRate: number) => Promise<void>;
+  uploadProductImage: (file: File) => Promise<string | null>;
   bulkImportProducts: (excelFile: File, zipFile: File | null, onProgress: (msg: string) => void) => Promise<BulkImportResult>;
 }
 
@@ -251,7 +252,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!product) return null;
 
       // Store ORIGINAL price
-      const basePrice = item.isCase ? product.priceCase : product.priceUnit;
+      const basePrice = (item.isCase && product.priceCase) ? product.priceCase : product.priceUnit;
 
       // Determine if special price (no discount) or regular (apply discount)
       // For now, we don't have a flag on the product itself for "special price" in the types, 
@@ -460,6 +461,39 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return result;
   };
 
+  const uploadProductImage = async (file: File): Promise<string | null> => {
+    if (!isSupabaseConfigured || !supabase) {
+      console.warn("Supabase not configured, cannot upload image.");
+      return null;
+    }
+
+    try {
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('products') // Assuming bucket name is 'products'
+        .upload(filePath, file);
+
+      if (error) {
+        console.error("Error uploading image:", error);
+        throw error;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('products')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error("Upload failed:", error);
+      return null;
+    }
+  };
+
   const addProduct = async (product: Product) => {
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.from('products').insert({
@@ -467,7 +501,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         name_fr: product.nameFR,
         department: product.department,
         price_unit: product.priceUnit,
-        price_case: product.priceCase,
+        price_case: product.priceCase ?? null, // Handle optional/undefined
         taxable: product.taxable,
         image_url: product.imageUrl,
         stock: product.stock
@@ -488,7 +522,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         name_fr: product.nameFR,
         department: product.department,
         price_unit: product.priceUnit,
-        price_case: product.priceCase,
+        price_case: product.priceCase ?? null,
         taxable: product.taxable,
         image_url: product.imageUrl
       }).eq('id', product.id);
@@ -525,7 +559,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       login, logout, register,
       addToCart, removeFromCart, clearCart, placeOrder,
       updateUser, updateCompanyInfo, addProduct, updateProduct, deleteProduct, bulkDeleteProducts, deleteUser, deleteOrder, updateOrderStatus, updateOrderDetails,
-      bulkImportProducts
+      bulkImportProducts, uploadProductImage
     }}>
       {children}
     </StoreContext.Provider >

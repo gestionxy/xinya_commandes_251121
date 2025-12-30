@@ -23,7 +23,7 @@ export interface Product {
   nameFR: string;
   department: string;
   priceUnit: number; // Single item price
-  priceCase: number; // Case price
+  priceCase?: number; // Case price (optional)
   taxable: boolean; // true = 1, false = 0
   imageUrl: string;
   stock: number;

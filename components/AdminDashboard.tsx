@@ -2040,21 +2040,26 @@ const OrderHistoryManager: React.FC = () => {
         }
 
         // Header for each department page
-        doc.setFontSize(20);
-        doc.text(`Order ${order.id} - ${dept}`, 14, 22);
+        doc.setFontSize(16);
+        doc.text(`Order: ${order.id}`, 14, 22);
+
+        doc.setFontSize(14);
+        doc.setTextColor(79, 70, 229); // Indigo 600
+        doc.text(`Department: ${dept}`, 14, 30);
+        doc.setTextColor(0); // Reset to black
 
         doc.setFontSize(12);
         // Sanitize user name just in case
-        doc.text(`Client: ${sanitizeForPdf(order.userName)} `, 14, 32);
-        doc.text(`Date: ${new Date(order.date).toLocaleDateString()} `, 14, 38);
+        doc.text(`Client: ${sanitizeForPdf(order.userName)} `, 14, 38);
+        doc.text(`Date: ${new Date(order.date).toLocaleDateString()} `, 14, 44);
 
         if (order.deliveryMethod) {
           const method = order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery';
           const time = order.deliveryTime ? order.deliveryTime.replace('T', ' ') : '';
-          doc.text(`Delivery: ${method} @${time} `, 14, 44);
-          doc.text(`Total: $${order.total.toFixed(2)} `, 14, 50);
+          doc.text(`Delivery: ${method} @${time} `, 14, 50);
+          doc.text(`Total: $${order.total.toFixed(2)} `, 14, 56);
         } else {
-          doc.text(`Total: $${order.total.toFixed(2)} `, 14, 44);
+          doc.text(`Total: $${order.total.toFixed(2)} `, 14, 50);
         }
 
         const tableRows = deptItems.map(item => {
@@ -2080,7 +2085,7 @@ const OrderHistoryManager: React.FC = () => {
         });
 
         autoTable(doc, {
-          startY: 60,
+          startY: 65,
           margin: { bottom: 60 }, // Reserve space for footer summary
           head: [['Image', 'Product Details', 'Qty', 'Price', 'Total']],
           body: tableRows,

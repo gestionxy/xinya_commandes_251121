@@ -2045,7 +2045,7 @@ const OrderHistoryManager: React.FC = () => {
 
         doc.setFontSize(14);
         doc.setTextColor(79, 70, 229); // Indigo 600
-        doc.text(`Department: ${dept}`, 14, 30);
+        doc.text(`Department: ${sanitizeForPdf(dept)}`, 14, 30);
         doc.setTextColor(0); // Reset to black
 
         doc.setFontSize(12);

@@ -1977,24 +1977,6 @@ const OrderHistoryManager: React.FC = () => {
     try {
       const doc = new jsPDF();
 
-      // Header
-      doc.setFontSize(20);
-      doc.text(`Order ${order.id} `, 14, 22);
-
-      doc.setFontSize(12);
-      // Sanitize user name just in case
-      doc.text(`Client: ${sanitizeForPdf(order.userName)} `, 14, 32);
-      doc.text(`Date: ${new Date(order.date).toLocaleDateString()} `, 14, 38);
-
-      if (order.deliveryMethod) {
-        const method = order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery';
-        const time = order.deliveryTime ? order.deliveryTime.replace('T', ' ') : '';
-        doc.text(`Delivery: ${method} @${time} `, 14, 44);
-        doc.text(`Total: $${order.total.toFixed(2)} `, 14, 50);
-      } else {
-        doc.text(`Total: $${order.total.toFixed(2)} `, 14, 44);
-      }
-
       // Sort items by Department
       const sortedItems = [...order.items].sort((a, b) => {
         const deptA = a.department || '';
@@ -2042,58 +2024,93 @@ const OrderHistoryManager: React.FC = () => {
         };
       }));
 
-      const tableRows = itemsWithImages.map(item => {
-        const name = sanitizeForPdf(item.productNameCN);
-        const dept = item.department ? `Dept: ${sanitizeForPdf(item.department)}` : '';
-        const taxInfo = `Tax: ${item.taxable ? 'Yes' : 'No'}`;
-        const status = !item.productExists ? ' (Deleted)' : '';
+      // Group items by department
+      const itemsByDept = itemsWithImages.reduce((acc, item) => {
+        const dept = item.department || 'Uncategorized';
+        if (!acc[dept]) acc[dept] = [];
+        acc[dept].push(item);
+        return acc;
+      }, {} as Record<string, typeof itemsWithImages>);
 
-        // Combine details into one cell with newlines
-        const details = `${name}${status}\n${dept}\n${taxInfo}`;
+      let isFirstPage = true;
 
-        const qty = `${item.quantity} ${item.isCase ? '(Case)' : '(Unit)'} `;
-        const price = `$${item.unitPrice.toFixed(2)} `;
-        const total = `$${item.totalLine.toFixed(2)} `;
+      for (const [dept, deptItems] of Object.entries(itemsByDept)) {
+        if (!isFirstPage) {
+          doc.addPage();
+        }
 
-        // Pass imageData in the cell object for safe access in didDrawCell
-        return [
-          { content: '', imageData: item.imageData },
-          details,
-          qty,
-          price,
-          total
-        ];
-      });
+        // Header for each department page
+        doc.setFontSize(20);
+        doc.text(`Order ${order.id} - ${dept}`, 14, 22);
 
-      autoTable(doc, {
-        startY: 60,
-        margin: { bottom: 60 }, // Reserve space for footer summary
-        head: [['Image', 'Product Details', 'Qty', 'Price', 'Total']],
-        body: tableRows,
-        didDrawCell: (data) => {
-          if (data.section === 'body' && data.column.index === 0) {
-            const raw = data.cell.raw as any;
-            if (raw && raw.imageData) {
-              try {
-                // Image in dedicated column, size 35x35
-                doc.addImage(raw.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 35);
-              } catch (e) {
-                // Ignore image errors
+        doc.setFontSize(12);
+        // Sanitize user name just in case
+        doc.text(`Client: ${sanitizeForPdf(order.userName)} `, 14, 32);
+        doc.text(`Date: ${new Date(order.date).toLocaleDateString()} `, 14, 38);
+
+        if (order.deliveryMethod) {
+          const method = order.deliveryMethod === 'pickup' ? 'Pickup' : 'Delivery';
+          const time = order.deliveryTime ? order.deliveryTime.replace('T', ' ') : '';
+          doc.text(`Delivery: ${method} @${time} `, 14, 44);
+          doc.text(`Total: $${order.total.toFixed(2)} `, 14, 50);
+        } else {
+          doc.text(`Total: $${order.total.toFixed(2)} `, 14, 44);
+        }
+
+        const tableRows = deptItems.map(item => {
+          const name = sanitizeForPdf(item.productNameCN);
+          const taxInfo = `Tax: ${item.taxable ? 'Yes' : 'No'}`;
+          const status = !item.productExists ? ' (Deleted)' : '';
+
+          // Combine details into one cell with newlines
+          const details = `${name}${status}\n${taxInfo}`;
+
+          const qty = `${item.quantity} ${item.isCase ? '(Case)' : '(Unit)'} `;
+          const price = `$${item.unitPrice.toFixed(2)} `;
+          const total = `$${item.totalLine.toFixed(2)} `;
+
+          // Pass imageData in the cell object for safe access in didDrawCell
+          return [
+            { content: '', imageData: item.imageData },
+            details,
+            qty,
+            price,
+            total
+          ];
+        });
+
+        autoTable(doc, {
+          startY: 60,
+          margin: { bottom: 60 }, // Reserve space for footer summary
+          head: [['Image', 'Product Details', 'Qty', 'Price', 'Total']],
+          body: tableRows,
+          didDrawCell: (data) => {
+            if (data.section === 'body' && data.column.index === 0) {
+              const raw = data.cell.raw as any;
+              if (raw && raw.imageData) {
+                try {
+                  // Image in dedicated column, size 35x35
+                  doc.addImage(raw.imageData, 'JPEG', data.cell.x + 2, data.cell.y + 2, 35, 35);
+                } catch (e) {
+                  // Ignore image errors
+                }
               }
             }
+          },
+          styles: { valign: 'middle' },
+          headStyles: { minCellHeight: 10 }, // Standard height for header
+          bodyStyles: { minCellHeight: 40 }, // Increased height for body rows (images)
+          columnStyles: {
+            0: { cellWidth: 38 }, // Dedicated Image column
+            1: { cellWidth: 70 }, // Product Details column
+            2: { cellWidth: 25 }, // Qty - increased to prevent wrapping
+            3: { cellWidth: 25 }, // Price
+            4: { cellWidth: 25 }  // Total
           }
-        },
-        styles: { valign: 'middle' },
-        headStyles: { minCellHeight: 10 }, // Standard height for header
-        bodyStyles: { minCellHeight: 40 }, // Increased height for body rows (images)
-        columnStyles: {
-          0: { cellWidth: 38 }, // Dedicated Image column
-          1: { cellWidth: 70 }, // Product Details column
-          2: { cellWidth: 25 }, // Qty - increased to prevent wrapping
-          3: { cellWidth: 25 }, // Price
-          4: { cellWidth: 25 }  // Total
-        }
-      });
+        });
+
+        isFirstPage = false;
+      }
 
       doc.save(`Order_${order.id}.pdf`);
     } catch (error: any) {

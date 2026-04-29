@@ -819,6 +819,23 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     shipToPhone: client?.phone || ''
   });
 
+  // Helper to sanitize text for PDF
+  const sanitizeForPdf = (str: string | undefined | null) => {
+    if (!str) return '';
+    let s = String(str)
+      .replace(/\uFF08/g, '(')
+      .replace(/\uFF09/g, ')')
+      .replace(/\u3002/g, '.')
+      .replace(/\uFF0C/g, ',')
+      .replace(/\uFF1A/g, ':')
+      .replace(/\uFF1B/g, ';')
+      .replace(/\u201C/g, '"')
+      .replace(/\u201D/g, '"')
+      .replace(/\u2018/g, "'")
+      .replace(/\u2019/g, "'");
+    return s.replace(/[^\x00-\xFF]/g, '').trim();
+  };
+
   const generatePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -832,12 +849,12 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     doc.setFontSize(10);
     doc.setTextColor(100);
     let yPos = 20;
-    doc.text(invoiceData.adminName, 20, yPos); yPos += 5;
-    doc.text(invoiceData.adminAddress, 20, yPos); yPos += 5;
-    doc.text(`Tel: ${invoiceData.adminPhone}`, 20, yPos); yPos += 5;
-    doc.text(`Email: ${invoiceData.adminEmail}`, 20, yPos); yPos += 5;
-    if (invoiceData.adminGst) { doc.text(`GST: ${invoiceData.adminGst}`, 20, yPos); yPos += 5; }
-    if (invoiceData.adminQst) { doc.text(`QST: ${invoiceData.adminQst}`, 20, yPos); yPos += 5; }
+    doc.text(sanitizeForPdf(invoiceData.adminName), 20, yPos); yPos += 5;
+    doc.text(sanitizeForPdf(invoiceData.adminAddress), 20, yPos); yPos += 5;
+    doc.text(`Tel: ${sanitizeForPdf(invoiceData.adminPhone)}`, 20, yPos); yPos += 5;
+    doc.text(`Email: ${sanitizeForPdf(invoiceData.adminEmail)}`, 20, yPos); yPos += 5;
+    if (invoiceData.adminGst) { doc.text(`GST: ${sanitizeForPdf(invoiceData.adminGst)}`, 20, yPos); yPos += 5; }
+    if (invoiceData.adminQst) { doc.text(`QST: ${sanitizeForPdf(invoiceData.adminQst)}`, 20, yPos); yPos += 5; }
 
     // Invoice Details Box
     yPos = 55;
@@ -848,15 +865,14 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     doc.setFontSize(10);
     doc.setTextColor(0);
     doc.text("Facture #:", pageWidth - 85, yPos);
-    doc.text(invoiceData.invoiceNumber, pageWidth - 25, yPos, { align: 'right' });
+    doc.text(sanitizeForPdf(invoiceData.invoiceNumber), pageWidth - 25, yPos, { align: 'right' });
     yPos += 6;
     doc.text("Date:", pageWidth - 85, yPos);
-    doc.text(invoiceData.invoiceDate, pageWidth - 25, yPos, { align: 'right' });
+    doc.text(sanitizeForPdf(invoiceData.invoiceDate), pageWidth - 25, yPos, { align: 'right' });
     yPos += 6;
     doc.text("Date de commande:", pageWidth - 85, yPos);
-    doc.text(invoiceData.orderDate, pageWidth - 25, yPos, { align: 'right' });
+    doc.text(sanitizeForPdf(invoiceData.orderDate), pageWidth - 25, yPos, { align: 'right' });
 
-    // Addresses
     // Addresses
     yPos = 90;
     // Sold To
@@ -865,17 +881,17 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     doc.text("Vendu à:", 20, yPos);
     doc.setFontSize(10);
     doc.setTextColor(0);
-    doc.text(invoiceData.soldToName, 20, yPos + 6);
+    doc.text(sanitizeForPdf(invoiceData.soldToName), 20, yPos + 6);
 
     // Split address by newline or semicolon for manual line breaks, then wrap if needed
-    const soldAddressParts = invoiceData.soldToAddress.split(/[\n;]/).map(part => part.trim()).filter(part => part);
+    const soldAddressParts = sanitizeForPdf(invoiceData.soldToAddress).split(/[\n;]/).map(part => part.trim()).filter(part => part);
     let currentY = yPos + 12;
     soldAddressParts.forEach(part => {
       const lines = doc.splitTextToSize(part, 80);
       doc.text(lines, 20, currentY);
       currentY += (lines.length * 5);
     });
-    doc.text(`Tel: ${invoiceData.soldToPhone}`, 20, currentY);
+    doc.text(`Tel: ${sanitizeForPdf(invoiceData.soldToPhone)}`, 20, currentY);
     const soldToEndY = currentY + 5;
 
     // Ship To
@@ -884,23 +900,23 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     doc.text("Livraison à:", pageWidth / 2 + 10, yPos);
     doc.setFontSize(10);
     doc.setTextColor(0);
-    doc.text(invoiceData.shipToName, pageWidth / 2 + 10, yPos + 6);
+    doc.text(sanitizeForPdf(invoiceData.shipToName), pageWidth / 2 + 10, yPos + 6);
 
-    const shipAddressParts = invoiceData.shipToAddress.split(/[\n;]/).map(part => part.trim()).filter(part => part);
+    const shipAddressParts = sanitizeForPdf(invoiceData.shipToAddress).split(/[\n;]/).map(part => part.trim()).filter(part => part);
     currentY = yPos + 12;
     shipAddressParts.forEach(part => {
       const lines = doc.splitTextToSize(part, 80);
       doc.text(lines, pageWidth / 2 + 10, currentY);
       currentY += (lines.length * 5);
     });
-    doc.text(`Tel: ${invoiceData.shipToPhone}`, pageWidth / 2 + 10, currentY);
+    doc.text(`Tel: ${sanitizeForPdf(invoiceData.shipToPhone)}`, pageWidth / 2 + 10, currentY);
     const shipToEndY = currentY + 5;
 
     // Table
     const tableStartY = Math.max(soldToEndY, shipToEndY) + 10;
 
     const tableRows = order.items.map((item, index) => {
-      let description = item.productNameCN || item.productNameFR || 'Item';
+      let description = sanitizeForPdf(item.productNameCN || item.productNameFR || 'Item');
 
       // Fallback: if item.taxable is undefined (legacy order), check current product list
       let isTaxable = item.taxable;

@@ -915,7 +915,16 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
     // Table
     const tableStartY = Math.max(soldToEndY, shipToEndY) + 10;
 
-    const tableRows = order.items.map((item, index) => {
+    const sortedItemsForPdf = [...order.items].map(item => {
+      let displayDept = item.department;
+      if (!displayDept) {
+        const p = products.find(prod => prod.nameCN === item.productNameCN);
+        if (p) displayDept = p.department;
+      }
+      return { ...item, displayDept };
+    }).sort((a, b) => (a.displayDept || '').localeCompare(b.displayDept || ''));
+
+    const tableRows = sortedItemsForPdf.map((item, index) => {
       let description = sanitizeForPdf(item.productNameCN || item.productNameFR || 'Item');
 
       // Fallback: if item.taxable is undefined (legacy order), check current product list
@@ -939,6 +948,7 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
       return [
         index + 1,
         item.isSpecialPrice ? `${description} *` : description,
+        sanitizeForPdf(item.displayDept || '-'),
         `${item.quantity} (${unit})`,
         `$${item.unitPrice.toFixed(2)}`,
         discountText,
@@ -948,62 +958,63 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
 
     autoTable(doc, {
       startY: tableStartY,
-      head: [['No.', 'Description', 'QTY', 'Prix', 'Disc.', 'Montant']],
+      head: [['No.', 'Description', 'Department', 'QTY', 'Prix', 'Disc.', 'Montant']],
       body: tableRows,
       showFoot: 'lastPage',
       theme: 'striped',
       headStyles: { fillColor: [79, 70, 229] },
       columnStyles: {
-        0: { cellWidth: 15 },
+        0: { cellWidth: 12 },
         1: { cellWidth: 'auto' },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 25, halign: 'right' },
-        4: { cellWidth: 20, halign: 'center' },
-        5: { cellWidth: 30, halign: 'right' }
+        2: { cellWidth: 25 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 22, halign: 'right' },
+        5: { cellWidth: 15, halign: 'center' },
+        6: { cellWidth: 25, halign: 'right' }
       },
       foot: (() => {
         const originalSubTotal = order.items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
         const discountAmount = originalSubTotal - order.subTotal;
         const footerRows = [];
 
-        // Use colSpan to give labels more space (merging columns 3 and 4)
-        // Columns: 0(No), 1(Desc), 2(Qty), 3(Price), 4(Disc), 5(Total)
-        // We merge 0-2 (3 cols) for empty space, then 3-4 (2 cols) for Label, then 5 for Value
+        // Use colSpan to give labels more space (merging columns 4 and 5)
+        // Columns: 0(No), 1(Desc), 2(Dept), 3(Qty), 4(Price), 5(Disc), 6(Total)
+        // We merge 0-3 (4 cols) for empty space, then 4-5 (2 cols) for Label, then 6 for Value
 
         footerRows.push([
-          { content: '', colSpan: 3, styles: { cellWidth: 'auto' } },
+          { content: '', colSpan: 4, styles: { cellWidth: 'auto' } },
           { content: 'Prix Original:', colSpan: 2, styles: { halign: 'right' } },
           `$${originalSubTotal.toFixed(2)}`
         ]);
 
         if (discountAmount > 0.01) {
           footerRows.push([
-            { content: '', colSpan: 3 },
+            { content: '', colSpan: 4 },
             { content: 'Rabais:', colSpan: 2, styles: { halign: 'right', textColor: [220, 38, 38] } }, // Red color for discount
             `-$${discountAmount.toFixed(2)}`
           ]);
         }
 
         footerRows.push([
-          { content: '', colSpan: 3 },
+          { content: '', colSpan: 4 },
           { content: 'Sous-total:', colSpan: 2, styles: { halign: 'right' } },
           `$${order.subTotal.toFixed(2)}`
         ]);
 
         footerRows.push([
-          { content: '', colSpan: 3 },
+          { content: '', colSpan: 4 },
           { content: 'TPS (5%):', colSpan: 2, styles: { halign: 'right' } },
           `$${order.taxTPS.toFixed(2)}`
         ]);
 
         footerRows.push([
-          { content: '', colSpan: 3 },
+          { content: '', colSpan: 4 },
           { content: 'TVQ (9.975%):', colSpan: 2, styles: { halign: 'right' } },
           `$${order.taxTVQ.toFixed(2)}`
         ]);
 
         footerRows.push([
-          { content: '', colSpan: 3 },
+          { content: '', colSpan: 4 },
           { content: 'Total:', colSpan: 2, styles: { halign: 'right', fontSize: 12 } },
           { content: `$${order.total.toFixed(2)}`, styles: { fontSize: 12, textColor: [79, 70, 229] } }
         ]);

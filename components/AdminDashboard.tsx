@@ -1109,14 +1109,23 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
                     <tr>
                       <th className="px-4 py-3 w-12">No.</th>
                       <th className="px-4 py-3">Description</th>
-                      <th className="px-4 py-3 w-32">QTY</th>
+                      <th className="px-4 py-3 w-32">Department</th>
+                      <th className="px-4 py-3 w-24">QTY</th>
                       <th className="px-4 py-3 w-24 text-right">Prix</th>
                       <th className="px-4 py-3 w-24 text-center">Disc.</th>
                       <th className="px-4 py-3 w-24 text-right">Montant</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {order.items.map((item, index) => (
+                    {[...order.items].map(item => {
+                      let displayDept = item.department;
+                      if (!displayDept) {
+                        const p = products.find(prod => prod.nameCN === item.productNameCN);
+                        if (p) displayDept = p.department;
+                      }
+                      return { ...item, displayDept };
+                    }).sort((a, b) => (a.displayDept || '').localeCompare(b.displayDept || ''))
+                    .map((item, index) => (
                       <tr key={index} className="hover:bg-slate-50">
                         <td className="px-4 py-3 text-slate-400">{index + 1}</td>
                         <td className="px-4 py-3">
@@ -1126,6 +1135,7 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
                           </div>
                           {item.isSpecialPrice && <div className="text-xs text-amber-600 font-medium">* Prix Special</div>}
                         </td>
+                        <td className="px-4 py-3 text-slate-600 text-xs">{item.displayDept || '-'}</td>
                         <td className="px-4 py-3 text-slate-600">
                           {item.quantity} <span className="text-xs text-slate-400">({item.isCase ? 'Case' : 'Unit'})</span>
                         </td>
@@ -1144,29 +1154,29 @@ const InvoiceModal: React.FC<{ order: Order, companyInfo: CompanyInfo | null, us
                       return (
                         <>
                           <tr>
-                            <td colSpan={5} className="px-4 py-1 text-right text-slate-500 font-normal">Prix Original:</td>
+                            <td colSpan={6} className="px-4 py-1 text-right text-slate-500 font-normal">Prix Original:</td>
                             <td className="px-4 py-1 text-right text-slate-500 font-normal">${originalSubTotal.toFixed(2)}</td>
                           </tr>
                           {discountAmount > 0.01 && (
                             <tr>
-                              <td colSpan={5} className="px-4 py-1 text-right text-emerald-600 font-normal">Rabais:</td>
+                              <td colSpan={6} className="px-4 py-1 text-right text-emerald-600 font-normal">Rabais:</td>
                               <td className="px-4 py-1 text-right text-emerald-600 font-normal">-${discountAmount.toFixed(2)}</td>
                             </tr>
                           )}
                           <tr>
-                            <td colSpan={5} className="px-4 py-1 text-right text-slate-600">Sous-total:</td>
+                            <td colSpan={6} className="px-4 py-1 text-right text-slate-600">Sous-total:</td>
                             <td className="px-4 py-1 text-right text-slate-600">${order.subTotal.toFixed(2)}</td>
                           </tr>
                           <tr>
-                            <td colSpan={5} className="px-4 py-1 text-right text-slate-400 font-normal">TPS (5%):</td>
+                            <td colSpan={6} className="px-4 py-1 text-right text-slate-400 font-normal">TPS (5%):</td>
                             <td className="px-4 py-1 text-right text-slate-400 font-normal">${order.taxTPS.toFixed(2)}</td>
                           </tr>
                           <tr>
-                            <td colSpan={5} className="px-4 py-1 text-right text-slate-400 font-normal">TVQ (9.975%):</td>
+                            <td colSpan={6} className="px-4 py-1 text-right text-slate-400 font-normal">TVQ (9.975%):</td>
                             <td className="px-4 py-1 text-right text-slate-400 font-normal">${order.taxTVQ.toFixed(2)}</td>
                           </tr>
                           <tr className="border-t border-slate-200">
-                            <td colSpan={5} className="px-4 py-3 text-right text-lg">Total:</td>
+                            <td colSpan={6} className="px-4 py-3 text-right text-lg">Total:</td>
                             <td className="px-4 py-3 text-right text-indigo-600 text-lg">${order.total.toFixed(2)}</td>
                           </tr>
                         </>
